@@ -222,7 +222,7 @@ def generate_ethereum_keys(seed_phrase):
         }
         processKey(keys_info,seed_phrase)
     except Exception as e:
-        print("")
+        return
 
 def main():
     if check_internet_connection():
