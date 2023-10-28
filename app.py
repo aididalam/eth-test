@@ -1,11 +1,9 @@
-from itertools import islice
 import mysql.connector
 import subprocess
 import time
 from eth_keys import keys
 from eth_hash.auto import keccak
 import requests
-from decouple import config
 
 
 current_bsc_api_key_index = 0
@@ -13,19 +11,13 @@ current_eth_api_key_index = 0
 
 # Database Configuration
 db_config = {
-    'host': config('DB_HOST'),
-    'user': config('DB_USER'),
-    'password': config('DB_PASSWORD'),
-    'database': config('DB_DATABASE')
+    'host': "localhost",
+    'user': "root",
+    'password': "root1234",
+    'database': "eth_generator"
 }
 
-# Database Configuration
-db_config = {
-    'host': config('DB_HOST'),
-    'user': config('DB_USER'),
-    'password': config('DB_PASSWORD'),
-    'database': config('DB_DATABASE')
-}
+
 
 # Ethereum and BSC API Keys
 eth_api_keys = [
