@@ -90,6 +90,7 @@ def get_transaction_count_eth(address):
 
             if response.status_code == 200:
                 data = response.json()
+                print(data)
                 transaction_count = len(data['result'])
                 return transaction_count
             else:
@@ -121,6 +122,7 @@ def get_transaction_count_bsc(address):
             if response.status_code == 200:
                 data = response.json()
                 transaction_count = len(data['result'])
+                print(data)
                 return transaction_count
             else:
                 print(f"Failed to retrieve data from BSCscan API (Attempt {retry + 1})")
