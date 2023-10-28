@@ -4,7 +4,9 @@ import time
 from eth_keys import keys
 from eth_hash.auto import keccak
 import requests
-
+import os
+script_dir = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(script_dir, "english.txt")
 
 current_bsc_api_key_index = 0
 current_eth_api_key_index = 0
@@ -230,7 +232,7 @@ def main():
 
 
     # Load your word list
-    with open("english.txt", "r") as file:
+    with open(file_path, "r") as file:
         word_list = [word.strip() for word in file]
 
     # Define the number of words to combine
