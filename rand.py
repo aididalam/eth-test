@@ -5,6 +5,7 @@ from eth_keys import keys
 from eth_hash.auto import keccak
 import requests
 import os
+import random
 script_dir = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(script_dir, "english.txt")
 
@@ -15,7 +16,7 @@ current_eth_api_key_index = 0
 db_config = {
     'host': "localhost",
     'user': "root",
-    'password': "root1234",
+    'password': "root",
     'database': "eth_generator"
 }
 
@@ -135,35 +136,6 @@ def get_transaction_count_bsc(address):
     print(f"Maximum retry attempts ({max_retries}) reached. Unable to retrieve transaction count.")
     return 0
 
-def get_last_seed_from_db(db_config):
-    try:
-        # Connect to the database
-        connection = mysql.connector.connect(**db_config)
-
-        # Create a cursor to execute SQL queries
-        cursor = connection.cursor()
-
-        # Define the SQL query to select the last seed from the "last_seed" table
-        select_query = "SELECT seed FROM last_seed ORDER BY id DESC LIMIT 1"
-
-        # Execute the query
-        cursor.execute(select_query)
-
-        # Fetch the last seed
-        last_seed = cursor.fetchone()
-
-        # Close the cursor and database connection
-        cursor.close()
-        connection.close()
-
-        # If a last seed is found, return it as a string, else return None
-        if last_seed:
-            return last_seed[0]
-        else:
-            return None
-    except Exception as e:
-        print(f"Error while getting last seed from the database: {e}")
-        return None
 
 def processKey(keys_info, seed_phrase):
     connection = mysql.connector.connect(**db_config)
@@ -198,11 +170,6 @@ def processKey(keys_info, seed_phrase):
         except Exception as error:
             print(f"Error saving data to the database: {error}")
     
-    # Update the "last_seed" table with the new seed
-    print("Last Seed: "+seed_phrase)
-    update_query = "INSERT INTO last_seed (id, seed) VALUES (1, %s) ON DUPLICATE KEY UPDATE seed = %s"
-    cursor.execute(update_query, (seed_phrase, seed_phrase))
-    connection.commit()
     connection.close()
     time.sleep(0.5)
              
@@ -230,7 +197,6 @@ def main():
     else:
         print("Could not establish an internet connection.")
 
-
     # Load your word list
     with open(file_path, "r") as file:
         word_list = [word.strip() for word in file]
@@ -238,36 +204,22 @@ def main():
     # Define the number of words to combine
     num_words_to_combine = 12
 
-    # Define the seed and positions for the first 12 words
-    start_words="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"
-    seed_words = get_last_seed_from_db(db_config) or start_words
-    seed_words=seed_words.split(" ")
-
-    try:
-        positions = [word_list.index(word) for word in seed_words]
-    except:
-        positions = [word_list.index(word) for word in start_words.split(" ")]
-
     while True:
-        # Generate a seed phrase using the current positions
+        # Generate a seed phrase using random positions from the word list
+        positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
         seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
         generate_ethereum_keys(seed_phrase)
-
-        # Update the positions for the next iteration
-        positions[-1] += 1
-
-        # Handle carry-over to the next loop
-        for i in range(num_words_to_combine - 1, 0, -1):
-            if positions[i] >= len(word_list):
-                positions[i] = 0
-                positions[i - 1] += 1
-
+        print(seed_phrase)
         # Check if all positions have exceeded the word list length
-        if positions[0] >= len(word_list):
+        if all(position >= len(word_list) for position in positions):
             break
 
-
 while True:
+    try:
+        main()
+    except Exception as e:
+        print(f"An error occurred: {e}. Restarting in 60 seconds...")
+        time.sleep(2)
     try:
         main()
     except Exception as e:
