@@ -168,6 +168,16 @@ def get_last_seed_from_db(db_config):
         print(f"Error while getting last seed from the database: {e}")
         return None
 
+def saveLastDb(seed_phrase):
+    connection = mysql.connector.connect(**db_config)
+    cursor = connection.cursor()
+    print("Last Seed: "+seed_phrase)
+    update_query = "INSERT INTO last_seed (id, seed) VALUES (1, %s) ON DUPLICATE KEY UPDATE seed = %s"
+    cursor.execute(update_query, (seed_phrase, seed_phrase))
+    connection.commit()
+    connection.close()
+    time.sleep(0.5)
+
 def processKey(keys_info, seed_phrase):
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
@@ -202,12 +212,7 @@ def processKey(keys_info, seed_phrase):
             print(f"Error saving data to the database: {error}")
     
     # Update the "last_seed" table with the new seed
-    print("Last Seed: "+seed_phrase)
-    update_query = "INSERT INTO last_seed (id, seed) VALUES (1, %s) ON DUPLICATE KEY UPDATE seed = %s"
-    cursor.execute(update_query, (seed_phrase, seed_phrase))
-    connection.commit()
-    connection.close()
-    time.sleep(0.5)
+    saveLastDb(seed_phrase)
              
 def generate_ethereum_keys(seed_phrase):
     try:
@@ -222,7 +227,7 @@ def generate_ethereum_keys(seed_phrase):
         }
         processKey(keys_info,seed_phrase)
     except Exception as e:
-        return
+        saveLastDb(seed_phrase)
 
 def main():
     if check_internet_connection():
