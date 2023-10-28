@@ -15,7 +15,7 @@ current_eth_api_key_index = 0
 db_config = {
     'host': "localhost",
     'user': "root",
-    'password': "root1234",
+    'password': "root",
     'database': "eth_generator"
 }
 
