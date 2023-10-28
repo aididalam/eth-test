@@ -5,6 +5,9 @@ from eth_keys import keys
 from eth_hash.auto import keccak
 import requests
 import os
+from eth_account import Account
+Account.enable_unaudited_hdwallet_features()
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(script_dir, "english.txt")
 
@@ -15,7 +18,7 @@ current_eth_api_key_index = 0
 db_config = {
     'host': "localhost",
     'user': "root",
-    'password': "root",
+    'password': "root1234",
     'database': "eth_generator"
 }
 
@@ -86,8 +89,8 @@ def get_transaction_count_eth(address):
 
             if response.status_code == 200:
                 data = response.json()
-                print(data)
                 transaction_count = len(data['result'])
+                print(transaction_count)
                 return transaction_count
             else:
                 print(f"Failed to retrieve data from Etherscan API (Attempt {retry + 1})")
@@ -120,7 +123,7 @@ def get_transaction_count_bsc(address):
             if response.status_code == 200:
                 data = response.json()
                 transaction_count = len(data['result'])
-                print(data)
+                print(transaction_count)
                 return transaction_count
             else:
                 print(f"Failed to retrieve data from BSCscan API (Attempt {retry + 1})")
@@ -207,21 +210,19 @@ def processKey(keys_info, seed_phrase):
     time.sleep(0.5)
              
 def generate_ethereum_keys(seed_phrase):
-    # Generate a private key from the seed phrase
-    private_key = keys.PrivateKey(keccak(seed_phrase.encode()))
-
-    # Get the corresponding public key
-    public_key = private_key.public_key
-
-    # Get the Ethereum address associated with the public key
-    eth_address = public_key.to_checksum_address()
-
-    keys_info = {
-        "private": private_key.to_hex(),
-        "public": public_key.to_hex(),
-        "address": eth_address
-    }
-    processKey(keys_info,seed_phrase)
+    try:
+        eth_account = Account.from_mnemonic(seed_phrase)
+        eth_address = eth_account.address
+        private_key = eth_account.key.hex()
+        public_key = eth_account.address
+        keys_info = {
+            "private": private_key,
+            "public": public_key,
+            "address": eth_address
+        }
+        processKey(keys_info,seed_phrase)
+    except Exception as e:
+        print("")
 
 def main():
     if check_internet_connection():

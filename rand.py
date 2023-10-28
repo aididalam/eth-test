@@ -8,6 +8,8 @@ import os
 import random
 script_dir = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(script_dir, "english.txt")
+from eth_account import Account
+Account.enable_unaudited_hdwallet_features()
 
 current_bsc_api_key_index = 0
 current_eth_api_key_index = 0
@@ -87,7 +89,6 @@ def get_transaction_count_eth(address):
 
             if response.status_code == 200:
                 data = response.json()
-                print(data)
                 transaction_count = len(data['result'])
                 return transaction_count
             else:
@@ -121,7 +122,6 @@ def get_transaction_count_bsc(address):
             if response.status_code == 200:
                 data = response.json()
                 transaction_count = len(data['result'])
-                print(data)
                 return transaction_count
             else:
                 print(f"Failed to retrieve data from BSCscan API (Attempt {retry + 1})")
@@ -174,21 +174,19 @@ def processKey(keys_info, seed_phrase):
     time.sleep(0.5)
              
 def generate_ethereum_keys(seed_phrase):
-    # Generate a private key from the seed phrase
-    private_key = keys.PrivateKey(keccak(seed_phrase.encode()))
-
-    # Get the corresponding public key
-    public_key = private_key.public_key
-
-    # Get the Ethereum address associated with the public key
-    eth_address = public_key.to_checksum_address()
-
-    keys_info = {
-        "private": private_key.to_hex(),
-        "public": public_key.to_hex(),
-        "address": eth_address
-    }
-    processKey(keys_info,seed_phrase)
+    try:
+        eth_account = Account.from_mnemonic(seed_phrase)
+        eth_address = eth_account.address
+        private_key = eth_account.key.hex()
+        public_key = eth_account.address
+        keys_info = {
+            "private": private_key,
+            "public": public_key,
+            "address": eth_address
+        }
+        processKey(keys_info,seed_phrase)
+    except Exception as e:
+        print("")
 
 def main():
     if check_internet_connection():
@@ -209,7 +207,6 @@ def main():
         positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
         seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
         generate_ethereum_keys(seed_phrase)
-        print(seed_phrase)
         # Check if all positions have exceeded the word list length
         if all(position >= len(word_list) for position in positions):
             break
