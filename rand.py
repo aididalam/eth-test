@@ -207,6 +207,7 @@ def main():
         positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
         seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
         generate_ethereum_keys(seed_phrase)
+        print(seed_phrase)
         # Check if all positions have exceeded the word list length
         if all(position >= len(word_list) for position in positions):
             break
