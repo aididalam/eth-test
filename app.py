@@ -53,12 +53,6 @@ bsc_api_keys = [
 
 
 
-
-
-
-
-
-
 def check_internet_connection():
     connected = False
 
@@ -78,8 +72,10 @@ def check_internet_connection():
 def get_transaction_count_eth(address):
     global current_eth_api_key_index
     max_retries=5
-    global current_eth_api_key_index
     eth_api_key= eth_api_keys[current_eth_api_key_index]
+    if current_eth_api_key_index>=len(eth_api_keys)-1:
+        current_eth_api_key_index=0
+    current_eth_api_key_index = current_eth_api_key_index+1
     for retry in range(max_retries):
         try:
             # Define the Etherscan API endpoint
@@ -95,7 +91,6 @@ def get_transaction_count_eth(address):
                 return transaction_count
             else:
                 print(f"Failed to retrieve data from Etherscan API (Attempt {retry + 1})")
-            current_eth_api_key_index = (current_eth_api_key_index + 1) % len(eth_api_keys)
         except requests.exceptions.RequestException as e:
             if "No internet connection" in str(e):
                 check_internet_connection()
@@ -111,6 +106,9 @@ def get_transaction_count_bsc(address):
     global current_bsc_api_key_index
     max_retries=5
     bsc_api_key= bsc_api_keys[current_bsc_api_key_index]
+    if current_bsc_api_key_index>=len(bsc_api_keys)-1:
+        current_bsc_api_key_index=0
+    current_bsc_api_key_index = current_bsc_api_key_index+1
     for retry in range(max_retries):
         try:
             # Define the BSCscan API endpoint
