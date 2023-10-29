@@ -56,13 +56,12 @@ def check_internet_connection():
             time.sleep(5)
     return connected
 
-def fetch_addresses_from_db(start_id, batch_size):
+def fetch_addresses_from_db(batch_size):
     try:
         connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
-        # Select addresses from the gen_address table starting from the given ID
-        select_query = f"SELECT id, address FROM gen_address WHERE id >= {start_id} ORDER BY id ASC LIMIT {batch_size}"
+        select_query = f"SELECT address FROM gen_address LIMIT {batch_size}"
         cursor.execute(select_query)
         addresses = cursor.fetchall()
 
@@ -91,8 +90,9 @@ def fetch_eth_and_bsc_balances(addresses):
 
     eth_addresses = []
     bsc_addresses = []
+    
 
-    for address_id, address in addresses:
+    for (address,) in addresses:
         eth_addresses.append(address)
         bsc_addresses.append(address)
 
@@ -176,31 +176,6 @@ def update_balances_in_db(eth_balances, bsc_balances):
     except Exception as e:
         print(f"Error updating balances in the database: {e}")
 
-def log_last_updated_id(last_updated_id):
-    try:
-        connection = mysql.connector.connect(**db_config)
-        cursor = connection.cursor()
-        update_query = "UPDATE last_check SET id_no = %s WHERE id = 1"
-        cursor.execute(update_query, (last_updated_id,))
-        connection.commit()
-        cursor.close()
-        connection.close()
-    except Exception as e:
-        print(f"Error logging the last updated ID: {e}")
-
-def get_last_updated_id():
-    try:
-        connection = mysql.connector.connect(**db_config)
-        cursor = connection.cursor()
-        select_query = "SELECT id_no FROM last_check WHERE id = 1"
-        cursor.execute(select_query)
-        result = cursor.fetchone()
-        cursor.close()
-        connection.close()
-        return result[0] if result else 1
-    except Exception as e:
-        print(f"Error getting the last updated ID: {e}")
-        return 1
 
 def main():
     if check_internet_connection():
@@ -208,12 +183,10 @@ def main():
     else:
         print("Could not establish an internet connection.")
 
-    # Get the start ID from the last updated ID in the last_check table
-    start_id = get_last_updated_id()
     
     while True:
         # Fetch addresses in batches
-        addresses = fetch_addresses_from_db(start_id, batch_size)
+        addresses = fetch_addresses_from_db(batch_size)
         
         if not addresses:
             print("No more addresses to process. Waiting....")
@@ -223,12 +196,6 @@ def main():
         eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses)
         update_balances_in_db(eth_balances, bsc_balances)
 
-        # Log the last updated ID
-        last_updated_id = addresses[-1][0]  # Last ID in the batch
-        log_last_updated_id(last_updated_id)
-
-        # Move to the next batch
-        start_id = last_updated_id + 1
 
 if __name__ == "__main__":
     main()
