@@ -42,7 +42,7 @@ db_config = {
     'database': "eth_generator"
 }
 
-batch_size = 15  # Number of addresses to process in each batch
+batch_size = 20  # Number of addresses to process in each batch
 
 def check_internet_connection():
     connected = False
