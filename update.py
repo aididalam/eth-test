@@ -2,7 +2,6 @@ import mysql.connector
 import requests
 import time
 import subprocess
-import json
 
 eth_api_keys = [
     "UJ78T6M7VBU2JIQC4KN5UPWGUWBIAUCKAC",
@@ -43,7 +42,7 @@ db_config = {
     'database': "eth_generator"
 }
 
-batch_size = 10  # Number of addresses to process in each batch
+batch_size = 15  # Number of addresses to process in each batch
 
 def check_internet_connection():
     connected = False
@@ -62,7 +61,8 @@ def fetch_addresses_from_db(batch_size):
         connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
-        select_query = f"SELECT address FROM gen_address ORDER by seed asc LIMIT {batch_size}"
+        # Select addresses from the gen_address table starting from the given ID
+        select_query = f"SELECT address FROM gen_address ORDER BY seed ASC limit {batch_size}"
         cursor.execute(select_query)
         addresses = cursor.fetchall()
 
@@ -91,9 +91,8 @@ def fetch_eth_and_bsc_balances(addresses):
 
     eth_addresses = []
     bsc_addresses = []
-    
 
-    for (address,) in addresses:
+    for address, in addresses:
         eth_addresses.append(address)
         bsc_addresses.append(address)
 
@@ -137,13 +136,10 @@ def fetch_eth_and_bsc_balances(addresses):
             if bsc_balance_response.status_code == 200:
                 bsc_balance_data = bsc_balance_response.json()
                 for data in bsc_balance_data['result']:
-                    try:
-                        address = data['account']
-                        balance_wei = int(data['balance'])
-                        balance_bnb = balance_wei / 1e18
-                        bsc_balances[address] = balance_bnb
-                    except Exception as e:
-                        continue
+                    address = data['account']
+                    balance_wei = int(data['balance'])
+                    balance_bnb = balance_wei / 1e18
+                    bsc_balances[address] = balance_bnb
                 return
 
             print(f"Failed to fetch BSC balances with API key: {bsc_api_key}")
@@ -154,36 +150,32 @@ def fetch_eth_and_bsc_balances(addresses):
     fetch_eth_balance_with_retry()
     fetch_bsc_balance_with_retry()
 
-
     return eth_balances, bsc_balances
 
 def update_balances_in_db(eth_balances, bsc_balances):
-    print(bsc_balances)
     try:
         connection = mysql.connector.connect(**db_config)
-        # cursor = connection.cursor()
-        
-        # for address, eth_balance in eth_balances.items():
-        #     bsc_balance = bsc_balances.get(address, None)
-        #     print("ad: " + address + " ETH" + str(eth_balance) + " BNB: " + str(bsc_balance))
-        #     if bsc_balance is not None:
-        #         # Add additional conditions to avoid deletion
-        #         should_delete = eth_balance == 0.0 and bsc_balance == 0.0
-        #         if should_delete:
-        #             # Delete the record if it meets the deletion criteria
-        #             delete_query = "DELETE FROM gen_address WHERE address = %s"
-        #             cursor.execute(delete_query, (address,))
-        #         else:
-        #             # Update balances for the current address in the database
-        #             update_query = "UPDATE gen_address SET eth_b = %s, bnb_b = %s WHERE address = %s"
-        #             cursor.execute(update_query, (eth_balance, bsc_balance, address))
-        
-        # connection.commit()
-        # cursor.close()
+        cursor = connection.cursor()
+
+        for address, eth_balance in eth_balances.items():
+            bsc_balance = bsc_balances.get(address, None)
+            print("ad: "+address+" ETH"+ str(eth_balance)+" BNB: "+str(bsc_balance))
+            if bsc_balance is not None:
+                if eth_balance == 0 and bsc_balance == 0:
+                    # Delete the record if both balances are zero
+                    delete_query = "DELETE FROM gen_address WHERE address = %s"
+                    cursor.execute(delete_query, (address,))
+                else:
+                    # Update balances for the current address in the database
+                    update_query = "UPDATE gen_address SET eth_b = %s, bnb_b = %s WHERE address = %s"
+                    cursor.execute(update_query, (eth_balance, bsc_balance, address))
+
+        connection.commit()
+        cursor.close()
         connection.close()
     except Exception as e:
         print(f"Error updating balances in the database: {e}")
-        connection.close()
+
 
 
 def main():
@@ -192,14 +184,15 @@ def main():
     else:
         print("Could not establish an internet connection.")
 
+    # Get the start ID from the last updated ID in the last_check table
     
     while True:
         # Fetch addresses in batches
         addresses = fetch_addresses_from_db(batch_size)
         
         if not addresses:
-            print("No more addresses to process. Waiting....")
-            time.sleep(10)
+            print("No more addresses to process. Waiting.")
+            time.sleep(5)
             continue
 
         eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses)

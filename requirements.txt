@@ -1,7 +1,0 @@
-islice
-mysql-connector-python-rf
-subprocess.run
-eth-keys
-eth-hash
-requests
-python-decouple
