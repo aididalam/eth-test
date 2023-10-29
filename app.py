@@ -188,6 +188,7 @@ def saveAddress(seed_phrase, keys_info):
     connection.commit()
     connection.close()
     time.sleep(0.5)
+    saveLastDb(seed_phrase)
 
 def processKey(keys_info, seed_phrase):
     connection = mysql.connector.connect(**db_config)
