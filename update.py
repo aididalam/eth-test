@@ -217,7 +217,8 @@ def main():
         
         if not addresses:
             print("No more addresses to process. Exiting.")
-            break
+            time.sleep(10)
+            continue
 
         eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses)
         update_balances_in_db(eth_balances, bsc_balances)
