@@ -61,7 +61,7 @@ def fetch_addresses_from_db(batch_size):
         connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
-        select_query = f"SELECT address FROM gen_address LIMIT {batch_size}"
+        select_query = f"SELECT address FROM gen_address ORDER by seed asc LIMIT {batch_size}"
         cursor.execute(select_query)
         addresses = cursor.fetchall()
 
