@@ -114,7 +114,7 @@ def fetch_eth_and_bsc_balances(addresses):
             if eth_balance_response.status_code == 200:
                 eth_balance_data = eth_balance_response.json()
                 for data in eth_balance_data['result']:
-                    address = data['account']
+                    address = data.get('account', '')
                     balance_wei = int(data['balance'])
                     balance_eth = balance_wei / 1e18
                     eth_balances[address] = balance_eth
@@ -136,7 +136,7 @@ def fetch_eth_and_bsc_balances(addresses):
             if bsc_balance_response.status_code == 200:
                 bsc_balance_data = bsc_balance_response.json()
                 for data in bsc_balance_data['result']:
-                    address = data['account']
+                    address = data.get('account', '')
                     balance_wei = int(data['balance'])
                     balance_bnb = balance_wei / 1e18
                     bsc_balances[address] = balance_bnb
