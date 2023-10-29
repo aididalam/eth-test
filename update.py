@@ -2,6 +2,7 @@ import mysql.connector
 import requests
 import time
 import subprocess
+import json
 
 eth_api_keys = [
     "UJ78T6M7VBU2JIQC4KN5UPWGUWBIAUCKAC",
@@ -42,7 +43,7 @@ db_config = {
     'database': "eth_generator"
 }
 
-batch_size = 20  # Number of addresses to process in each batch
+batch_size = 10  # Number of addresses to process in each batch
 
 def check_internet_connection():
     connected = False
@@ -153,31 +154,36 @@ def fetch_eth_and_bsc_balances(addresses):
     fetch_eth_balance_with_retry()
     fetch_bsc_balance_with_retry()
 
+
     return eth_balances, bsc_balances
 
 def update_balances_in_db(eth_balances, bsc_balances):
+    print(bsc_balances)
     try:
         connection = mysql.connector.connect(**db_config)
-        cursor = connection.cursor()
-
-        for address, eth_balance in eth_balances.items():
-            bsc_balance = bsc_balances.get(address, 0)
-            print("ad: "+address+" ETH"+ str(eth_balance)+" BNB: "+str(bsc_balance))
-            if bsc_balance is not None:
-                if eth_balance == 0 and bsc_balance == 0:
-                    # Delete the record if both balances are zero
-                    delete_query = "DELETE FROM gen_address WHERE address = %s"
-                    cursor.execute(delete_query, (address,))
-                else:
-                    # Update balances for the current address in the database
-                    update_query = "UPDATE gen_address SET eth_b = %s, bnb_b = %s WHERE address = %s"
-                    cursor.execute(update_query, (eth_balance, bsc_balance, address))
-
-        connection.commit()
-        cursor.close()
+        # cursor = connection.cursor()
+        
+        # for address, eth_balance in eth_balances.items():
+        #     bsc_balance = bsc_balances.get(address, None)
+        #     print("ad: " + address + " ETH" + str(eth_balance) + " BNB: " + str(bsc_balance))
+        #     if bsc_balance is not None:
+        #         # Add additional conditions to avoid deletion
+        #         should_delete = eth_balance == 0.0 and bsc_balance == 0.0
+        #         if should_delete:
+        #             # Delete the record if it meets the deletion criteria
+        #             delete_query = "DELETE FROM gen_address WHERE address = %s"
+        #             cursor.execute(delete_query, (address,))
+        #         else:
+        #             # Update balances for the current address in the database
+        #             update_query = "UPDATE gen_address SET eth_b = %s, bnb_b = %s WHERE address = %s"
+        #             cursor.execute(update_query, (eth_balance, bsc_balance, address))
+        
+        # connection.commit()
+        # cursor.close()
         connection.close()
     except Exception as e:
         print(f"Error updating balances in the database: {e}")
+        connection.close()
 
 
 def main():
