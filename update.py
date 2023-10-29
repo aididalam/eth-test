@@ -105,7 +105,7 @@ def fetch_eth_and_bsc_balances(addresses):
 
     def fetch_eth_balance_with_retry():
         nonlocal eth_api_key
-        max_retries = 5
+        max_retries = 2
         retries = 0
         while retries < max_retries:
             eth_balance_url = f"https://api.etherscan.io/api?module=account&action=balancemulti&address={eth_addresses_str}&tag=latest&apikey={eth_api_key}"
@@ -131,7 +131,7 @@ def fetch_eth_and_bsc_balances(addresses):
 
     def fetch_bsc_balance_with_retry():
         nonlocal bsc_api_key
-        max_retries = 5
+        max_retries = 2
         retries = 0
         while retries < max_retries:
             bsc_balance_url = f"https://api.bscscan.com/api?module=account&action=balancemulti&address={bsc_addresses_str}&tag=latest&apikey={bsc_api_key}"
