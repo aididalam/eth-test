@@ -2,10 +2,7 @@ import mysql.connector
 import requests
 import time
 import subprocess
-import threading
 
-
-# Define your API keys and database configuration
 eth_api_keys = [
     "UJ78T6M7VBU2JIQC4KN5UPWGUWBIAUCKAC",
     "I6F2AI8VBIPWN4D87UG23PMN3WBN3WBKVX",
@@ -35,7 +32,6 @@ bsc_api_keys = [
     "FPPKGYJKU1UCGIJWD7A2ZR7CG3E28XQ7EU",
 ]
 
-
 current_eth_api_key_index = 0
 current_bsc_api_key_index = 0
 
@@ -45,6 +41,8 @@ db_config = {
     'password': "root1234",
     'database': "eth_generator"
 }
+
+batch_size = 20  # Number of addresses to process in each batch
 
 def check_internet_connection():
     connected = False
@@ -58,21 +56,13 @@ def check_internet_connection():
             time.sleep(5)
     return connected
 
-def fetch_addresses_from_db():
+def fetch_addresses_from_db(start_id, batch_size):
     try:
         connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
-        # Fetch the last used ID from the last_check table
-        cursor.execute("SELECT id_no FROM last_check WHERE id = 1")
-        last_used_id = cursor.fetchone()
-        if last_used_id is None:
-            last_used_id = 1
-        else:
-            last_used_id = last_used_id[0]
-
-        # Select addresses from the gen_address table starting from the last used ID
-        select_query = f"SELECT id, address FROM gen_address WHERE id >= {last_used_id} ORDER BY id ASC"
+        # Select addresses from the gen_address table starting from the given ID
+        select_query = f"SELECT id, address FROM gen_address WHERE id >= {start_id} ORDER BY id ASC LIMIT {batch_size}"
         cursor.execute(select_query)
         addresses = cursor.fetchall()
 
@@ -82,57 +72,7 @@ def fetch_addresses_from_db():
     except Exception as e:
         print(f"Error fetching addresses from the database: {e}")
         return []
-
-
-
-def fetch_eth_balance_and_tx_count(address):
-    try:
-        eth_api_key = get_next_eth_api_key()
-        eth_balance_url = f"https://api.etherscan.io/api?module=account&action=balance&address={address}&tag=latest&apikey={eth_api_key}"
-        eth_balance_response = requests.get(eth_balance_url)
-
-        eth_tx_count_url = f"https://api.etherscan.io/api?module=account&action=txlist&address={address}&apikey={eth_api_key}"
-        eth_tx_count_response = requests.get(eth_tx_count_url)
-
-        if eth_balance_response.status_code == 200 and eth_tx_count_response.status_code == 200:
-            eth_balance_data = eth_balance_response.json()
-            eth_tx_count_data = eth_tx_count_response.json()
-
-            balance_wei = int(eth_balance_data['result'])
-            balance_eth = balance_wei / 1e18
-            tx_count = len(eth_tx_count_data['result'])
-
-            return balance_eth, tx_count
-        else:
-            print(f"Failed to retrieve ETH balance and transaction count for address {address}")
-    except Exception as e:
-        print(f"Error fetching ETH balance and transaction count for address {address}: {e}")
-    return None, 0
-
-def fetch_bsc_balance_and_tx_count(address):
-    try:
-        bsc_api_key = get_next_bsc_api_key()
-        bsc_balance_url = f"https://api.bscscan.com/api?module=account&action=balance&address={address}&tag=latest&apikey={bsc_api_key}"
-        bsc_balance_response = requests.get(bsc_balance_url)
-
-        bsc_tx_count_url = f"https://api.bscscan.com/api?module=account&action=txlist&address={address}&apikey={bsc_api_key}"
-        bsc_tx_count_response = requests.get(bsc_tx_count_url)
-
-        if bsc_balance_response.status_code == 200 and bsc_tx_count_response.status_code == 200:
-            bsc_balance_data = bsc_balance_response.json()
-            bsc_tx_count_data = bsc_tx_count_response.json()
-
-            balance_wei = int(bsc_balance_data['result'])
-            balance_bnb = balance_wei / 1e18
-            tx_count = len(bsc_tx_count_data['result'])
-
-            return balance_bnb, tx_count
-        else:
-            print(f"Failed to retrieve BSC balance and transaction count for address {address}")
-    except Exception as e:
-        print(f"Error fetching BSC balance and transaction count for address {address}: {e}")
-    return None, 0
-
+    
 def get_next_eth_api_key():
     global current_eth_api_key_index
     api_key = eth_api_keys[current_eth_api_key_index]
@@ -145,54 +85,149 @@ def get_next_bsc_api_key():
     current_bsc_api_key_index = (current_bsc_api_key_index + 1) % len(bsc_api_keys)
     return api_key
 
-def update_balances_in_db(address_id, eth_balance, bsc_balance, eth_tx_count, bsc_tx_count):
+def fetch_eth_and_bsc_balances(addresses):
+    eth_balances = {}
+    bsc_balances = {}
+
+    eth_addresses = []
+    bsc_addresses = []
+
+    for address_id, address in addresses:
+        eth_addresses.append(address)
+        bsc_addresses.append(address)
+
+    eth_api_key = get_next_eth_api_key()
+    bsc_api_key = get_next_bsc_api_key()
+
+    # Construct comma-separated address strings
+    eth_addresses_str = ",".join(eth_addresses)
+    bsc_addresses_str = ",".join(bsc_addresses)
+
+    def fetch_eth_balance_with_retry():
+        nonlocal eth_api_key
+        max_retries = 5
+        retries = 0
+        while retries < max_retries:
+            eth_balance_url = f"https://api.etherscan.io/api?module=account&action=balancemulti&address={eth_addresses_str}&tag=latest&apikey={eth_api_key}"
+            eth_balance_response = requests.get(eth_balance_url)
+
+            if eth_balance_response.status_code == 200:
+                eth_balance_data = eth_balance_response.json()
+                for data in eth_balance_data['result']:
+                    address = data['account']
+                    balance_wei = int(data['balance'])
+                    balance_eth = balance_wei / 1e18
+                    eth_balances[address] = balance_eth
+                return
+
+            print(f"Failed to fetch ETH balances with API key: {eth_api_key}")
+            retries += 1
+            eth_api_key = get_next_eth_api_key()
+            time.sleep(5)  # Wait for 5 seconds before retrying
+
+    def fetch_bsc_balance_with_retry():
+        nonlocal bsc_api_key
+        max_retries = 5
+        retries = 0
+        while retries < max_retries:
+            bsc_balance_url = f"https://api.bscscan.com/api?module=account&action=balancemulti&address={bsc_addresses_str}&tag=latest&apikey={bsc_api_key}"
+            bsc_balance_response = requests.get(bsc_balance_url)
+
+            if bsc_balance_response.status_code == 200:
+                bsc_balance_data = bsc_balance_response.json()
+                for data in bsc_balance_data['result']:
+                    address = data['account']
+                    balance_wei = int(data['balance'])
+                    balance_bnb = balance_wei / 1e18
+                    bsc_balances[address] = balance_bnb
+                return
+
+            print(f"Failed to fetch BSC balances with API key: {bsc_api_key}")
+            retries += 1
+            bsc_api_key = get_next_bsc_api_key()
+            time.sleep(5)  # Wait for 5 seconds before retrying
+
+    fetch_eth_balance_with_retry()
+    fetch_bsc_balance_with_retry()
+
+    return eth_balances, bsc_balances
+
+def update_balances_in_db(eth_balances, bsc_balances):
     try:
         connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
-        # Update the gen_address table
-        update_query = "UPDATE gen_address SET eth_b = %s, bnb_b = %s, eth_tx_count = %s, bnb_tx_count = %s WHERE id = %s"
-        cursor.execute(update_query, (eth_balance, bsc_balance, eth_tx_count, bsc_tx_count, address_id))
-
-        # Check if last_check table has an entry with id=1
-        select_query = "SELECT * FROM last_check WHERE id = 1"
-        cursor.execute(select_query)
-        last_check_entry = cursor.fetchone()
-
-        if last_check_entry:
-            # Update the existing entry
-            update_last_check_query = "UPDATE last_check SET id_no = %s WHERE id = 1"
-            cursor.execute(update_last_check_query, (address_id,))
-        else:
-            # Insert a new entry with id=1
-            insert_last_check_query = "INSERT INTO last_check (id, id_no) VALUES (1, %s)"
-            cursor.execute(insert_last_check_query, (address_id,))
+        for address, eth_balance in eth_balances.items():
+            bsc_balance = bsc_balances.get(address, 0)
+            print("ad: "+address+" ETH"+ str(eth_balance)+" BNB: "+str(bsc_balance))
+            if bsc_balance is not None:
+                if eth_balance == 0 and bsc_balance == 0:
+                    # Delete the record if both balances are zero
+                    delete_query = "DELETE FROM gen_address WHERE address = %s"
+                    cursor.execute(delete_query, (address,))
+                else:
+                    # Update balances for the current address in the database
+                    update_query = "UPDATE gen_address SET eth_b = %s, bnb_b = %s WHERE address = %s"
+                    cursor.execute(update_query, (eth_balance, bsc_balance, address))
 
         connection.commit()
         cursor.close()
         connection.close()
     except Exception as e:
-        print(f"Error updating balances and last check in the database: {e}")    
-        
+        print(f"Error updating balances in the database: {e}")
+
+def log_last_updated_id(last_updated_id):
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        update_query = "UPDATE last_check SET id_no = %s WHERE id = 1"
+        cursor.execute(update_query, (last_updated_id,))
+        connection.commit()
+        cursor.close()
+        connection.close()
+    except Exception as e:
+        print(f"Error logging the last updated ID: {e}")
+
+def get_last_updated_id():
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        select_query = "SELECT id_no FROM last_check WHERE id = 1"
+        cursor.execute(select_query)
+        result = cursor.fetchone()
+        cursor.close()
+        connection.close()
+        return result[0] if result else 1
+    except Exception as e:
+        print(f"Error getting the last updated ID: {e}")
+        return 1
 
 def main():
     if check_internet_connection():
         print("Connected to the internet. Continuing with the code.")
     else:
         print("Could not establish an internet connection.")
-    
-    # Fetch addresses from the database
-    addresses = fetch_addresses_from_db()
 
-    if addresses:
-        for address_id, address in addresses:
-            eth_balance, eth_tx_count = fetch_eth_balance_and_tx_count(address)
-            bsc_balance, bsc_tx_count = fetch_bsc_balance_and_tx_count(address)
-            update_balances_in_db(address_id, eth_balance, bsc_balance, eth_tx_count, bsc_tx_count)
-            print(f"Updated balances and transaction counts for address {address_id}")
-            
-    else:
-        print("No more addresses to process. Exiting.")
+    # Get the start ID from the last updated ID in the last_check table
+    start_id = get_last_updated_id()
+    
+    while True:
+        # Fetch addresses in batches
+        addresses = fetch_addresses_from_db(start_id, batch_size)
+        
+        if not addresses:
+            print("No more addresses to process. Exiting.")
+            break
+
+        eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses)
+        update_balances_in_db(eth_balances, bsc_balances)
+
+        # Log the last updated ID
+        last_updated_id = addresses[-1][0]  # Last ID in the batch
+        log_last_updated_id(last_updated_id)
+
+        # Move to the next batch
+        start_id = last_updated_id + 1
 
 if __name__ == "__main__":
     main()
