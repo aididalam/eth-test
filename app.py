@@ -268,7 +268,7 @@ def main():
     except:
         positions = [word_list.index(word) for word in start_words.split(" ")]
     
-    positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
+    # positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
 
 
     while True:
