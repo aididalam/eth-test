@@ -6,6 +6,7 @@ from eth_hash.auto import keccak
 import requests
 import os
 from eth_account import Account
+import threading
 Account.enable_unaudited_hdwallet_features()
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -178,6 +179,16 @@ def saveLastDb(seed_phrase):
     connection.close()
     time.sleep(0.5)
 
+def saveAddress(seed_phrase, keys_info):
+    connection = mysql.connector.connect(**db_config)
+    cursor = connection.cursor()
+    print("Last Seed: " + seed_phrase)
+    update_query = "INSERT INTO gen_address (seed, public, private, address) VALUES (%s, %s, %s, %s)"  # Added a comma after %s
+    cursor.execute(update_query, (seed_phrase, keys_info["public"], keys_info["private"], keys_info["address"]))
+    connection.commit()
+    connection.close()
+    time.sleep(0.5)
+
 def processKey(keys_info, seed_phrase):
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
@@ -225,7 +236,8 @@ def generate_ethereum_keys(seed_phrase):
             "public": public_key,
             "address": eth_address
         }
-        processKey(keys_info,seed_phrase)
+        # processKey(keys_info,seed_phrase)
+        saveAddress(seed_phrase,keys_info)
     except Exception as e:
         saveLastDb(seed_phrase)
 
@@ -257,8 +269,9 @@ def main():
     while True:
         # Generate a seed phrase using the current positions
         seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
-        generate_ethereum_keys(seed_phrase)
-
+        # generate_ethereum_keys(seed_phrase)
+        background_thread = threading.Thread(target=generate_ethereum_keys, args=(seed_phrase,))
+        background_thread.start()
         # Update the positions for the next iteration
         positions[-1] += 1
 
