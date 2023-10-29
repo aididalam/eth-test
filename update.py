@@ -62,7 +62,7 @@ def fetch_addresses_from_db(batch_size):
         cursor = connection.cursor()
 
         # Select addresses from the gen_address table starting from the given ID
-        select_query = f"SELECT address FROM gen_address ORDER BY seed ASC limit {batch_size}"
+        select_query = f"SELECT address FROM gen_address where bnb_b is NUll ORDER BY seed ASC limit {batch_size}"
         cursor.execute(select_query)
         addresses = cursor.fetchall()
 
