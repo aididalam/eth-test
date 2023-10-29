@@ -136,10 +136,13 @@ def fetch_eth_and_bsc_balances(addresses):
             if bsc_balance_response.status_code == 200:
                 bsc_balance_data = bsc_balance_response.json()
                 for data in bsc_balance_data['result']:
-                    address = data['account']
-                    balance_wei = int(data['balance'])
-                    balance_bnb = balance_wei / 1e18
-                    bsc_balances[address] = balance_bnb
+                    try:
+                        address = data['account']
+                        balance_wei = int(data['balance'])
+                        balance_bnb = balance_wei / 1e18
+                        bsc_balances[address] = balance_bnb
+                    except Exception as e:
+                        continue
                 return
 
             print(f"Failed to fetch BSC balances with API key: {bsc_api_key}")
