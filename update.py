@@ -62,7 +62,7 @@ def fetch_addresses_from_db(batch_size):
         cursor = connection.cursor()
 
         # Select addresses from the gen_address table starting from the given ID
-        select_query = f"SELECT address FROM gen_address where bnb_b is NUll ORDER BY seed ASC limit {batch_size}"
+        select_query = f"SELECT address FROM gen_address where bnb_b is NUll  ORDER BY seed ASC limit {batch_size}"
         cursor.execute(select_query)
         addresses = cursor.fetchall()
 
@@ -112,13 +112,17 @@ def fetch_eth_and_bsc_balances(addresses):
             eth_balance_response = requests.get(eth_balance_url)
 
             if eth_balance_response.status_code == 200:
-                eth_balance_data = eth_balance_response.json()
-                for data in eth_balance_data['result']:
-                    address = data.get('account', '')
-                    balance_wei = int(data['balance'])
-                    balance_eth = balance_wei / 1e18
-                    eth_balances[address] = balance_eth
-                return
+                try:
+                    eth_balance_data = eth_balance_response.json()
+                    for data in eth_balance_data['result']:
+                        address = data['account']
+                        balance_wei = int(data['balance'])
+                        balance_eth = balance_wei / 1e18
+                        eth_balances[address] = balance_eth
+                    return
+                except Exception as e:
+                    print(f"Error processing")
+
 
             print(f"Failed to fetch ETH balances with API key: {eth_api_key}")
             retries += 1
@@ -134,13 +138,16 @@ def fetch_eth_and_bsc_balances(addresses):
             bsc_balance_response = requests.get(bsc_balance_url)
 
             if bsc_balance_response.status_code == 200:
-                bsc_balance_data = bsc_balance_response.json()
-                for data in bsc_balance_data['result']:
-                    address = data.get('account', '')
-                    balance_wei = int(data['balance'])
-                    balance_bnb = balance_wei / 1e18
-                    bsc_balances[address] = balance_bnb
-                return
+                try:
+                    bsc_balance_data = bsc_balance_response.json()
+                    for data in bsc_balance_data['result']:
+                        address = data['account']
+                        balance_wei = int(data['balance'])
+                        balance_bnb = balance_wei / 1e18
+                        bsc_balances[address] = balance_bnb
+                    return
+                except Exception as e:
+                    print(f"Error processing")
 
             print(f"Failed to fetch BSC balances with API key: {bsc_api_key}")
             retries += 1
