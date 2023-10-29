@@ -216,7 +216,7 @@ def main():
         addresses = fetch_addresses_from_db(start_id, batch_size)
         
         if not addresses:
-            print("No more addresses to process. Exiting.")
+            print("No more addresses to process. Waiting....")
             time.sleep(10)
             continue
 
