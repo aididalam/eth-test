@@ -2,34 +2,50 @@ import mysql.connector
 import requests
 import time
 import subprocess
+import threading
+import concurrent.futures
+import random
+
 
 eth_api_keys = [
-    "UJ78T6M7VBU2JIQC4KN5UPWGUWBIAUCKAC",
-    "I6F2AI8VBIPWN4D87UG23PMN3WBN3WBKVX",
-    "KXTGGRTBP4WITP635WE2CWITZE7JTF84YR",
-    "D5YX5PI2WC6KDNVQ3HZ1QXM9D2RS6AQ2H2",
-    "5SADIWAJG9TQN4EPSKEPUGIQI4XRWKN44C",
-    "H5FPZ4Q5FDFNDNDHH4MT8P8JUFYJPVKQMB",
-    "H2Z22TVPK2ZF4PEH56J3NQEST7R5K1S3JF",
-    "8B2RGPHTI92NKFU13AJ98SN78W3S3K9XVN",
-    "G3FDQWKU76R5MAAKXHIB8GPUIMMRRY15SX",
-    "SW2GHIXK8QUBSRKSJK9FD2D4C8VPT5AIEU",
-    "BF1Z7FX81MVTUK35424MZRHX4AN9T3EBXX",
-    "E6SKDTI62R7JDAKP28ESUKX3WXTPFX7KVV",
+    "DF9PQ4B2TMY842D1AXWCD4EARQ6QE2Y1QP",
+    "XVB6JBW4V9J55G7ZER2BXQ13X5A9M4INPA",
+    "6JH2KCY6E2EPBJIVJRY7J8W98E1KGTQVGU",
+    "22MYUP9MSH7R5VSX3G92NCTFVXH8ZP2JAY",
+    "SAQPI29AZABDCZYG7K4IJQ873X61N4GMG7",
+    "5H7DY8TCDI4HJIAIGFGRD32IMMV8NWTQX6",
+    "EKWZH6A868265IWHHCWY6VMTKCWM1XPYA5",
+    "DNYMRQ3ZDAFHEDG3E7ZBBIZ2D6BP88J4V1",
+    "68IVK5W6IBD3YG5XIGYZTWNV8KEER5QCME",
+    "3PZ7HTE6BPH5F2Z1CQN3W3CAGFEY3TK5KX",
+    "PY6EH5JMFNT226AY88MWN1CPR2DF3I3CJI",
+    "D1UX8HI9NQGEE8P5JDIQAPMGPGR4IVJGHH",
+    "F5NHUA89CGQ28JWC94BQJRICA932X2ZFVI",
+    "RWYS6JR1AFZHHN67GB6RMQKA7K77BAHA6Q",
+    "U1DHYSZIF4CSRFWRKPA6X29PJJCIQ1XQCT",
+    "2Q8QNJJGMJCUWHWGTTSJ2BMGISNIHYTKQJ",
+    "5TFJF6KKR4ZH78C52JR8CV2IEWJ88GD4GF",
+    "98PT65RTUABYTT37GHQ5BQ4S7VV1ZNSR4A",
 ]
 bsc_api_keys = [
-    "6H2ZST2W2M3QPVWJPXGSUHPJSGN6HJBT9N",
-    "X6SNJZQ4JIS6IB4UDWJP8EG7W4BJMZ8ZVW",
-    "HN4T18YC8QPWH2JU7UHPHBTPMKU74UJNF7",
-    "NVIEYUPDUTXQ5CAKB59MBD9XU8BP5BENPK",
-    "ZZHWZMHNCMJ7IZPXRIVTHANKKRI19HEA2I",
-    "DA4F5M5P2NDMQBZ7KVRW4QCVA93GEU8A6Z",
-    "M54DWTT2AP1E86I3WHT6U8FYQJ2BXEMZSQ",
-    "X3JHA2IC3RS8EZ41YYEG4EP6NBRH4V22MH",
-    "8FIC8RMH6Q6H627VFNKBKHEDUZA296PQKV",
-    "RDV2XR3EWMX8W3TTBFDIK69PJQM48NX83J",
-    "S11JWS3H14Q4GQH21KB8J2TN3SC1A3EHQM",
-    "FPPKGYJKU1UCGIJWD7A2ZR7CG3E28XQ7EU",
+    "J4J4BNWW9M6F7AI3HYZJ39S6NB3T65M3QR",
+    "Z9URM6R2UZ4CDUVTDRFPTRGN3A3YWPC1MM",
+    "U2XWW6DRJ2GVIJCDWXTKV3K9SJ4FVVQF9V",
+    "QQPH8BQGVJGRQYK448Z9YSS4SGYU8TQESD",
+    "IPVVFTK3JQCYAJ5UQG4XCYYJRSCV83W3ZC",
+    "9V6T8YH8JYDXD4FXQBB433XYK8EP3QVU6D",
+    "3VHBAQYSCS5WJ7PZ4C81UK2UPCQCN72U22",
+    "SWF2SHV2KXVA1T88UCU2Q7UMDESIEDV39Y",
+    "5IPHZTGMBJ5BHWRYC37WUXP25J1X7XP32I",
+    "QZJM7N3YJAA6TXNR7MQE62WSF3UTIKD4Y1",
+    "43Y5TKATER7XAFIXEZQFZP5T64UAFYV77T",
+    "IZMV74J5RCC2PNPK1T3BV8SR3AW8NUD35F",
+    "UKU6G398DE67TGF8G7YJWZUP23ASYKFXS1",
+    "NVK3J2WRHFDDY6913CMWQUS64ESGATY8ET",
+    "TJMDNVQ5HDAP45HXI3AVBU5FZ6ADGQG5Y6",
+    "TJQ9A13TPXXMNFK4YC66SH2INIWCYUXIDQ",
+    "239M9C95JCGVM5JBZGS54BH7KS6QWUZD8X",
+    "DIWB4UXMXQ3SVRTMWGR9MRK31H6IAQD3NQ",
 ]
 
 current_eth_api_key_index = 0
@@ -56,36 +72,75 @@ def check_internet_connection():
             time.sleep(5)
     return connected
 
-def fetch_addresses_from_db(batch_size):
+def fetch_addresses_from_db(batch_size,connection):
     try:
-        connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
         # Select addresses from the gen_address table starting from the given ID
-        select_query = f"SELECT address FROM gen_address where bnb_b is NUll  ORDER BY seed ASC limit {batch_size}"
+        select_query = f"SELECT address FROM gen_address where bnb_b is NUll  ORDER BY RAND() limit {batch_size}"
         cursor.execute(select_query)
         addresses = cursor.fetchall()
 
         cursor.close()
-        connection.close()
         return addresses
     except Exception as e:
         print(f"Error fetching addresses from the database: {e}")
         return []
     
-def get_next_eth_api_key():
-    global current_eth_api_key_index
-    api_key = eth_api_keys[current_eth_api_key_index]
-    current_eth_api_key_index = (current_eth_api_key_index + 1) % len(eth_api_keys)
+
+
+def get_next_eth_api_key(connection):
+    cursor = connection.cursor()
+
+    try:
+        # Check for an idle API key with the earliest last_use
+        cursor.execute("SELECT `key` FROM api_keys WHERE type='eth' AND (last_use IS NULL OR last_use = (SELECT MIN(last_use) FROM api_keys WHERE type='eth'))")
+        result = cursor.fetchall()
+
+        if result:
+            api_key = result[0][0]
+        else:
+            # If no idle API keys are found, pick a random key
+            api_key = random.choice(eth_api_keys)
+
+        # Update the last_use field for the selected API key
+        cursor.execute("UPDATE api_keys SET last_use = NOW() WHERE `key` = %s", (api_key,))
+        connection.commit()
+
+    except Exception as e:
+        print(f"Error getting next ETH API key: {e}")
+    finally:
+        cursor.close()
+
     return api_key
 
-def get_next_bsc_api_key():
-    global current_bsc_api_key_index
-    api_key = bsc_api_keys[current_bsc_api_key_index]
-    current_bsc_api_key_index = (current_bsc_api_key_index + 1) % len(bsc_api_keys)
+def get_next_bsc_api_key(connection):
+    # Connect to the database
+    cursor = connection.cursor()
+
+    try:
+        # Check for an idle API key with the earliest last_use
+        cursor.execute("SELECT `key` FROM api_keys WHERE type='bsc' AND (last_use IS NULL OR last_use = (SELECT MIN(last_use) FROM api_keys WHERE type='bsc'))")
+        result = cursor.fetchall()
+
+        if result:
+            api_key = result[0][0]
+        else:
+            # If no idle API keys are found, pick a random key
+            api_key = random.choice(bsc_api_keys)
+
+        # Update the last_use field for the selected API key
+        cursor.execute("UPDATE api_keys SET last_use = NOW() WHERE `key` = %s", (api_key,))
+        connection.commit()
+
+    except Exception as e:
+        print(f"Error getting next BSC API key: {e}")
+    finally:
+        cursor.close()
+
     return api_key
 
-def fetch_eth_and_bsc_balances(addresses):
+def fetch_eth_and_bsc_balances(addresses,connection):
     eth_balances = {}
     bsc_balances = {}
 
@@ -96,18 +151,16 @@ def fetch_eth_and_bsc_balances(addresses):
         eth_addresses.append(address)
         bsc_addresses.append(address)
 
-    eth_api_key = get_next_eth_api_key()
-    bsc_api_key = get_next_bsc_api_key()
 
     # Construct comma-separated address strings
     eth_addresses_str = ",".join(eth_addresses)
     bsc_addresses_str = ",".join(bsc_addresses)
 
     def fetch_eth_balance_with_retry():
-        nonlocal eth_api_key
         max_retries = 2
         retries = 0
         while retries < max_retries:
+            eth_api_key = get_next_eth_api_key(connection)
             eth_balance_url = f"https://api.etherscan.io/api?module=account&action=balancemulti&address={eth_addresses_str}&tag=latest&apikey={eth_api_key}"
             eth_balance_response = requests.get(eth_balance_url)
 
@@ -130,10 +183,10 @@ def fetch_eth_and_bsc_balances(addresses):
             time.sleep(5)  # Wait for 5 seconds before retrying
 
     def fetch_bsc_balance_with_retry():
-        nonlocal bsc_api_key
         max_retries = 2
         retries = 0
         while retries < max_retries:
+            bsc_api_key = get_next_bsc_api_key(connection)
             bsc_balance_url = f"https://api.bscscan.com/api?module=account&action=balancemulti&address={bsc_addresses_str}&tag=latest&apikey={bsc_api_key}"
             bsc_balance_response = requests.get(bsc_balance_url)
 
@@ -159,9 +212,8 @@ def fetch_eth_and_bsc_balances(addresses):
 
     return eth_balances, bsc_balances
 
-def update_balances_in_db(eth_balances, bsc_balances):
+def update_balances_in_db(eth_balances, bsc_balances,connection):
     try:
-        connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
         for address, eth_balance in eth_balances.items():
@@ -179,11 +231,15 @@ def update_balances_in_db(eth_balances, bsc_balances):
 
         connection.commit()
         cursor.close()
-        connection.close()
     except Exception as e:
         print(f"Error updating balances in the database: {e}")
 
-
+def proccess_address(addresses,connection):
+    try:
+        eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses,connection)
+        update_balances_in_db(eth_balances, bsc_balances,connection)
+    finally:
+        connection.close()
 
 def main():
     if check_internet_connection():
@@ -191,20 +247,24 @@ def main():
     else:
         print("Could not establish an internet connection.")
 
-    # Get the start ID from the last updated ID in the last_check table
-    
-    while True:
-        # Fetch addresses in batches
-        addresses = fetch_addresses_from_db(batch_size)
+    max_threads = 15
+    with concurrent.futures.ThreadPoolExecutor(max_threads) as executor:
+        while True:
+            # Fetch addresses in batches
+            try: 
+                 connection = mysql.connector.connect(**db_config)
+            except Exception as e:
+                time.sleep(5)
+                print("A lot of connection. Waiting")
+                continue
+            addresses = fetch_addresses_from_db(batch_size,connection)
+            if not addresses:
+                print("No more addresses to process. Waiting.")
+                time.sleep(5)
+                continue
+            executor.submit(proccess_address, addresses,connection)
+            time.sleep(0.5)
         
-        if not addresses:
-            print("No more addresses to process. Waiting.")
-            time.sleep(5)
-            continue
-
-        eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses)
-        update_balances_in_db(eth_balances, bsc_balances)
-
 
 while True:
     try:
