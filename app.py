@@ -9,6 +9,7 @@ import random
 from eth_account import Account
 import threading
 Account.enable_unaudited_hdwallet_features()
+import eth_utils
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(script_dir, "english.txt")
@@ -18,8 +19,8 @@ current_eth_api_key_index = 0
 
 # Database Configuration
 db_config = {
-    'host': "localhost",
-    'user': "root",
+    'host': "192.168.0.100",
+    'user': "aidid",
     'password': "root1234",
     'database': "eth_generator"
 }
@@ -172,25 +173,31 @@ def get_last_seed_from_db(db_config):
         return None
 
 def saveLastDb(seed_phrase):
-    connection = mysql.connector.connect(**db_config)
-    cursor = connection.cursor()
-    print("Last Seed: "+seed_phrase)
-    update_query = "INSERT INTO last_seed (id, seed) VALUES (1, %s) ON DUPLICATE KEY UPDATE seed = %s"
-    cursor.execute(update_query, (seed_phrase, seed_phrase))
-    connection.commit()
-    connection.close()
-    time.sleep(0.5)
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        print("Last Seed: "+seed_phrase)
+        update_query = "INSERT INTO last_seed (id, seed) VALUES (1, %s) ON DUPLICATE KEY UPDATE seed = %s"
+        cursor.execute(update_query, (seed_phrase, seed_phrase))
+        connection.commit()
+        connection.close()
+        time.sleep(0.5)
+    except Exception as e:
+        pass
 
 def saveAddress(seed_phrase, keys_info):
-    connection = mysql.connector.connect(**db_config)
-    cursor = connection.cursor()
-    print("Last Seed: " + seed_phrase)
-    update_query = "INSERT INTO gen_address (seed, public, private, address) VALUES (%s, %s, %s, %s)"  # Added a comma after %s
-    cursor.execute(update_query, (seed_phrase, keys_info["public"], keys_info["private"], keys_info["address"]))
-    connection.commit()
-    connection.close()
-    time.sleep(0.5)
-    saveLastDb(seed_phrase)
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        print("Last Seed: " + seed_phrase)
+        update_query = "INSERT INTO gen_address (seed, public, private, address) VALUES (%s, %s, %s, %s)"  # Added a comma after %s
+        cursor.execute(update_query, (seed_phrase, keys_info["public"], keys_info["private"], keys_info["address"]))
+        connection.commit()
+        connection.close()
+        time.sleep(0.5)
+        saveLastDb(seed_phrase)
+    except Exception as e:
+        pass
 
 def processKey(keys_info, seed_phrase):
     connection = mysql.connector.connect(**db_config)
@@ -241,6 +248,8 @@ def generate_ethereum_keys(seed_phrase):
         }
         # processKey(keys_info,seed_phrase)
         saveAddress(seed_phrase,keys_info)
+    except eth_utils.exceptions.ValidationError as ve:
+        saveLastDb(seed_phrase)
     except Exception as e:
         saveLastDb(seed_phrase)
         
