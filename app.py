@@ -150,7 +150,7 @@ def get_last_seed_from_db(db_config):
         cursor = connection.cursor()
 
         # Define the SQL query to select the last seed from the "last_seed" table
-        select_query = "SELECT seed FROM last_seed ORDER BY id DESC LIMIT 1"
+        select_query = "SELECT seed FROM last_seed where id=1"
 
         # Execute the query
         cursor.execute(select_query)
@@ -245,11 +245,11 @@ def generate_ethereum_keys(seed_phrase):
         saveLastDb(seed_phrase)
 
 def main():
-    if check_internet_connection():
-        # Proceed with your code here
-        print("Connected to the internet. Continuing with the code.")
-    else:
-        print("Could not establish an internet connection.")
+    # if check_internet_connection():
+    #     # Proceed with your code here
+    #     print("Connected to the internet. Continuing with the code.")
+    # else:
+    #     print("Could not establish an internet connection.")
 
 
     # Load your word list
