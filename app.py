@@ -150,7 +150,7 @@ def get_last_seed_from_db(db_config):
         cursor = connection.cursor()
 
         # Define the SQL query to select the last seed from the "last_seed" table
-        select_query = "SELECT seed FROM last_seed where id=1"
+        select_query = "SELECT seed FROM last_seed where id=2"
 
         # Execute the query
         cursor.execute(select_query)
@@ -175,7 +175,7 @@ def saveLastDb(seed_phrase):
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     print("Last Seed: "+seed_phrase)
-    update_query = "INSERT INTO last_seed (id, seed) VALUES (1, %s) ON DUPLICATE KEY UPDATE seed = %s"
+    update_query = "INSERT INTO last_seed (id, seed) VALUES (2, %s) ON DUPLICATE KEY UPDATE seed = %s"
     cursor.execute(update_query, (seed_phrase, seed_phrase))
     connection.commit()
     connection.close()
@@ -243,6 +243,7 @@ def generate_ethereum_keys(seed_phrase):
         saveAddress(seed_phrase,keys_info)
     except Exception as e:
         saveLastDb(seed_phrase)
+        
 
 def main():
     # if check_internet_connection():
@@ -260,7 +261,7 @@ def main():
     num_words_to_combine = 12
 
     # Define the seed and positions for the first 12 words
-    start_words="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"
+    start_words="ability abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"
     seed_words = get_last_seed_from_db(db_config) or start_words
     seed_words=seed_words.split(" ")
 
@@ -269,7 +270,7 @@ def main():
     except:
         positions = [word_list.index(word) for word in start_words.split(" ")]
     
-    # positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
+    positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
 
 
     while True:
