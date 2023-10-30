@@ -206,5 +206,12 @@ def main():
         update_balances_in_db(eth_balances, bsc_balances)
 
 
-if __name__ == "__main__":
-    main()
+while True:
+    try:
+        main()
+    except Exception as e:
+        print(f"Error Happend....! Resatarting in 10s")
+    time.sleep(10)
+
+    
+    
