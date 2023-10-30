@@ -52,8 +52,8 @@ current_eth_api_key_index = 0
 current_bsc_api_key_index = 0
 
 db_config = {
-    'host': "localhost",
-    'user': "root",
+    'host': "192.168.0.100",
+    'user': "aidid",
     'password': "root1234",
     'database': "eth_generator"
 }
