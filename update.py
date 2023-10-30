@@ -155,7 +155,6 @@ def fetch_eth_and_bsc_balances(addresses,connection):
     # Construct comma-separated address strings
     eth_addresses_str = ",".join(eth_addresses)
     bsc_addresses_str = ",".join(bsc_addresses)
-    time.sleep(5)
 
     def fetch_eth_balance_with_retry():
         max_retries = 2
@@ -248,8 +247,7 @@ def main():
     else:
         print("Could not establish an internet connection.")
 
-    # Get the start ID from the last updated ID in the last_check table
-    max_threads = 8
+    max_threads = 15
     with concurrent.futures.ThreadPoolExecutor(max_threads) as executor:
         while True:
             # Fetch addresses in batches
@@ -265,7 +263,7 @@ def main():
                 time.sleep(5)
                 continue
             executor.submit(proccess_address, addresses,connection)
-            time.sleep(5)
+            time.sleep(0.5)
         
 
 while True:
