@@ -2,6 +2,8 @@ import mysql.connector
 import requests
 import time
 import subprocess
+import threading
+
 
 eth_api_keys = [
     "DF9PQ4B2TMY842D1AXWCD4EARQ6QE2Y1QP",
@@ -16,6 +18,12 @@ eth_api_keys = [
     "3PZ7HTE6BPH5F2Z1CQN3W3CAGFEY3TK5KX",
     "PY6EH5JMFNT226AY88MWN1CPR2DF3I3CJI",
     "D1UX8HI9NQGEE8P5JDIQAPMGPGR4IVJGHH",
+    "F5NHUA89CGQ28JWC94BQJRICA932X2ZFVI",
+    "RWYS6JR1AFZHHN67GB6RMQKA7K77BAHA6Q",
+    "U1DHYSZIF4CSRFWRKPA6X29PJJCIQ1XQCT",
+    "2Q8QNJJGMJCUWHWGTTSJ2BMGISNIHYTKQJ",
+    "5TFJF6KKR4ZH78C52JR8CV2IEWJ88GD4GF",
+    "98PT65RTUABYTT37GHQ5BQ4S7VV1ZNSR4A",
 ]
 bsc_api_keys = [
     "J4J4BNWW9M6F7AI3HYZJ39S6NB3T65M3QR",
@@ -30,6 +38,12 @@ bsc_api_keys = [
     "QZJM7N3YJAA6TXNR7MQE62WSF3UTIKD4Y1",
     "43Y5TKATER7XAFIXEZQFZP5T64UAFYV77T",
     "IZMV74J5RCC2PNPK1T3BV8SR3AW8NUD35F",
+    "UKU6G398DE67TGF8G7YJWZUP23ASYKFXS1",
+    "NVK3J2WRHFDDY6913CMWQUS64ESGATY8ET",
+    "TJMDNVQ5HDAP45HXI3AVBU5FZ6ADGQG5Y6",
+    "TJQ9A13TPXXMNFK4YC66SH2INIWCYUXIDQ",
+    "239M9C95JCGVM5JBZGS54BH7KS6QWUZD8X",
+    "DIWB4UXMXQ3SVRTMWGR9MRK31H6IAQD3NQ",
 ]
 
 current_eth_api_key_index = 0
@@ -62,7 +76,7 @@ def fetch_addresses_from_db(batch_size):
         cursor = connection.cursor()
 
         # Select addresses from the gen_address table starting from the given ID
-        select_query = f"SELECT address FROM gen_address where bnb_b is NUll  ORDER BY seed ASC limit {batch_size}"
+        select_query = f"SELECT address FROM gen_address where bnb_b is NUll  ORDER BY RAND() limit {batch_size}"
         cursor.execute(select_query)
         addresses = cursor.fetchall()
 
@@ -183,7 +197,14 @@ def update_balances_in_db(eth_balances, bsc_balances):
     except Exception as e:
         print(f"Error updating balances in the database: {e}")
 
+def proccess_address(addresses):
+    if not addresses:
+        print("No more addresses to process. Waiting.")
+        time.sleep(5)
+        return
 
+    eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses)
+    update_balances_in_db(eth_balances, bsc_balances)
 
 def main():
     if check_internet_connection():
@@ -196,14 +217,9 @@ def main():
     while True:
         # Fetch addresses in batches
         addresses = fetch_addresses_from_db(batch_size)
+        background_thread = threading.Thread(target=proccess_address, args=(addresses,))
+        background_thread.start()
         
-        if not addresses:
-            print("No more addresses to process. Waiting.")
-            time.sleep(5)
-            continue
-
-        eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses)
-        update_balances_in_db(eth_balances, bsc_balances)
 
 
 while True:
