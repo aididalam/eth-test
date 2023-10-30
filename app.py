@@ -243,6 +243,22 @@ def generate_ethereum_keys(seed_phrase):
     except Exception as e:
         saveLastDb(seed_phrase)
 
+    try:
+        output_string = " ".join(seed_phrase.split()[::-1])
+        eth_account = Account.from_mnemonic(output_string)
+        eth_address = eth_account.address
+        private_key = eth_account.key.hex()
+        public_key = eth_account.address
+        keys_info = {
+            "private": private_key,
+            "public": public_key,
+            "address": eth_address
+        }
+        # processKey(keys_info,seed_phrase)
+        saveAddress(output_string,keys_info)
+    except Exception as e:
+        pass
+
 def main():
     if check_internet_connection():
         # Proceed with your code here
