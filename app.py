@@ -151,7 +151,7 @@ def get_last_seed_from_db(db_config):
         cursor = connection.cursor()
 
         # Define the SQL query to select the last seed from the "last_seed" table
-        select_query = "SELECT seed FROM last_seed where id=1"
+        select_query = "SELECT seed FROM last_seed where id=2"
 
         # Execute the query
         cursor.execute(select_query)
@@ -271,7 +271,11 @@ def main():
 
     # Define the seed and positions for the first 12 words
     start_words="ability abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"
-    seed_words = get_last_seed_from_db(db_config) or start_words
+    while True:
+        seed_words = get_last_seed_from_db(db_config)
+        if seed_words is not None:
+            break
+        time.sleep(1)
     seed_words=seed_words.split(" ")
 
     try:
