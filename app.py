@@ -171,6 +171,7 @@ def get_last_seed_from_db(db_config):
         return None
 
 def saveLastDb(seed_phrase):
+    return
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     print("Last Seed: "+seed_phrase)
