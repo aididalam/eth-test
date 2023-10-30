@@ -3,6 +3,8 @@ import requests
 import time
 import subprocess
 import threading
+import concurrent.futures
+import random
 
 
 eth_api_keys = [
@@ -70,9 +72,8 @@ def check_internet_connection():
             time.sleep(5)
     return connected
 
-def fetch_addresses_from_db(batch_size):
+def fetch_addresses_from_db(batch_size,connection):
     try:
-        connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
         # Select addresses from the gen_address table starting from the given ID
@@ -81,25 +82,65 @@ def fetch_addresses_from_db(batch_size):
         addresses = cursor.fetchall()
 
         cursor.close()
-        connection.close()
         return addresses
     except Exception as e:
         print(f"Error fetching addresses from the database: {e}")
         return []
     
-def get_next_eth_api_key():
-    global current_eth_api_key_index
-    api_key = eth_api_keys[current_eth_api_key_index]
-    current_eth_api_key_index = (current_eth_api_key_index + 1) % len(eth_api_keys)
+
+
+def get_next_eth_api_key(connection):
+    cursor = connection.cursor()
+
+    try:
+        # Check for an idle API key with the earliest last_use
+        cursor.execute("SELECT `key` FROM api_keys WHERE type='eth' AND (last_use IS NULL OR last_use = (SELECT MIN(last_use) FROM api_keys WHERE type='eth'))")
+        result = cursor.fetchall()
+
+        if result:
+            api_key = result[0][0]
+        else:
+            # If no idle API keys are found, pick a random key
+            api_key = random.choice(eth_api_keys)
+
+        # Update the last_use field for the selected API key
+        cursor.execute("UPDATE api_keys SET last_use = NOW() WHERE `key` = %s", (api_key,))
+        connection.commit()
+
+    except Exception as e:
+        print(f"Error getting next ETH API key: {e}")
+    finally:
+        cursor.close()
+
     return api_key
 
-def get_next_bsc_api_key():
-    global current_bsc_api_key_index
-    api_key = bsc_api_keys[current_bsc_api_key_index]
-    current_bsc_api_key_index = (current_bsc_api_key_index + 1) % len(bsc_api_keys)
+def get_next_bsc_api_key(connection):
+    # Connect to the database
+    cursor = connection.cursor()
+
+    try:
+        # Check for an idle API key with the earliest last_use
+        cursor.execute("SELECT `key` FROM api_keys WHERE type='bsc' AND (last_use IS NULL OR last_use = (SELECT MIN(last_use) FROM api_keys WHERE type='bsc'))")
+        result = cursor.fetchall()
+
+        if result:
+            api_key = result[0][0]
+        else:
+            # If no idle API keys are found, pick a random key
+            api_key = random.choice(bsc_api_keys)
+
+        # Update the last_use field for the selected API key
+        cursor.execute("UPDATE api_keys SET last_use = NOW() WHERE `key` = %s", (api_key,))
+        connection.commit()
+
+    except Exception as e:
+        print(f"Error getting next BSC API key: {e}")
+    finally:
+        cursor.close()
+
     return api_key
 
-def fetch_eth_and_bsc_balances(addresses):
+def fetch_eth_and_bsc_balances(addresses,connection):
     eth_balances = {}
     bsc_balances = {}
 
@@ -110,18 +151,17 @@ def fetch_eth_and_bsc_balances(addresses):
         eth_addresses.append(address)
         bsc_addresses.append(address)
 
-    eth_api_key = get_next_eth_api_key()
-    bsc_api_key = get_next_bsc_api_key()
 
     # Construct comma-separated address strings
     eth_addresses_str = ",".join(eth_addresses)
     bsc_addresses_str = ",".join(bsc_addresses)
+    time.sleep(5)
 
     def fetch_eth_balance_with_retry():
-        nonlocal eth_api_key
         max_retries = 2
         retries = 0
         while retries < max_retries:
+            eth_api_key = get_next_eth_api_key(connection)
             eth_balance_url = f"https://api.etherscan.io/api?module=account&action=balancemulti&address={eth_addresses_str}&tag=latest&apikey={eth_api_key}"
             eth_balance_response = requests.get(eth_balance_url)
 
@@ -144,10 +184,10 @@ def fetch_eth_and_bsc_balances(addresses):
             time.sleep(5)  # Wait for 5 seconds before retrying
 
     def fetch_bsc_balance_with_retry():
-        nonlocal bsc_api_key
         max_retries = 2
         retries = 0
         while retries < max_retries:
+            bsc_api_key = get_next_bsc_api_key(connection)
             bsc_balance_url = f"https://api.bscscan.com/api?module=account&action=balancemulti&address={bsc_addresses_str}&tag=latest&apikey={bsc_api_key}"
             bsc_balance_response = requests.get(bsc_balance_url)
 
@@ -173,9 +213,8 @@ def fetch_eth_and_bsc_balances(addresses):
 
     return eth_balances, bsc_balances
 
-def update_balances_in_db(eth_balances, bsc_balances):
+def update_balances_in_db(eth_balances, bsc_balances,connection):
     try:
-        connection = mysql.connector.connect(**db_config)
         cursor = connection.cursor()
 
         for address, eth_balance in eth_balances.items():
@@ -193,18 +232,15 @@ def update_balances_in_db(eth_balances, bsc_balances):
 
         connection.commit()
         cursor.close()
-        connection.close()
     except Exception as e:
         print(f"Error updating balances in the database: {e}")
 
-def proccess_address(addresses):
-    if not addresses:
-        print("No more addresses to process. Waiting.")
-        time.sleep(5)
-        return
-
-    eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses)
-    update_balances_in_db(eth_balances, bsc_balances)
+def proccess_address(addresses,connection):
+    try:
+        eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses,connection)
+        update_balances_in_db(eth_balances, bsc_balances,connection)
+    finally:
+        connection.close()
 
 def main():
     if check_internet_connection():
@@ -213,14 +249,24 @@ def main():
         print("Could not establish an internet connection.")
 
     # Get the start ID from the last updated ID in the last_check table
-    
-    while True:
-        # Fetch addresses in batches
-        addresses = fetch_addresses_from_db(batch_size)
-        background_thread = threading.Thread(target=proccess_address, args=(addresses,))
-        background_thread.start()
+    max_threads = 8
+    with concurrent.futures.ThreadPoolExecutor(max_threads) as executor:
+        while True:
+            # Fetch addresses in batches
+            try: 
+                 connection = mysql.connector.connect(**db_config)
+            except Exception as e:
+                time.sleep(5)
+                print("A lot of connection. Waiting")
+                continue
+            addresses = fetch_addresses_from_db(batch_size,connection)
+            if not addresses:
+                print("No more addresses to process. Waiting.")
+                time.sleep(5)
+                continue
+            executor.submit(proccess_address, addresses,connection)
+            time.sleep(5)
         
-
 
 while True:
     try:
