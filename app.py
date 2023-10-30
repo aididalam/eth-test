@@ -18,8 +18,8 @@ current_eth_api_key_index = 0
 
 # Database Configuration
 db_config = {
-    'host': "localhost",
-    'user': "root",
+    'host': "192.168.0.100",
+    'user': "aidid",
     'password': "root1234",
     'database': "eth_generator"
 }
