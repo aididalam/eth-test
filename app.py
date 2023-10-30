@@ -151,7 +151,7 @@ def get_last_seed_from_db(db_config):
         cursor = connection.cursor()
 
         # Define the SQL query to select the last seed from the "last_seed" table
-        select_query = "SELECT seed FROM last_seed where id=2"
+        select_query = "SELECT seed FROM last_seed where id=1"
 
         # Execute the query
         cursor.execute(select_query)
