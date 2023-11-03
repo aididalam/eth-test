@@ -107,7 +107,6 @@ def get_transaction_count_eth(address):
     print(f"Maximum retry attempts ({max_retries}) reached. Unable to retrieve transaction count.")
     return 0
 
-
 def get_transaction_count_bsc(address):
     global current_bsc_api_key_index
     max_retries=5
