@@ -10,6 +10,8 @@ from eth_account import Account
 import threading
 Account.enable_unaudited_hdwallet_features()
 import eth_utils
+import concurrent.futures
+
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(script_dir, "english.txt")
@@ -255,11 +257,11 @@ def generate_ethereum_keys(seed_phrase):
         
 
 def main():
-    # if check_internet_connection():
-    #     # Proceed with your code here
-    #     print("Connected to the internet. Continuing with the code.")
-    # else:
-    #     print("Could not establish an internet connection.")
+    if check_internet_connection():
+        # Proceed with your code here
+        print("Connected to the internet. Continuing with the code.")
+    else:
+        print("Could not establish an internet connection.")
 
 
     # Load your word list
@@ -285,14 +287,13 @@ def main():
     
     # positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
 
-
-    while True:
-        positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
-        # Generate a seed phrase using the current positions
-        seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
-        # generate_ethereum_keys(seed_phrase)
-        background_thread = threading.Thread(target=generate_ethereum_keys, args=(seed_phrase,))
-        background_thread.start()
+    with concurrent.futures.ThreadPoolExecutor(100) as executor:
+        while True:
+            positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
+            # Generate a seed phrase using the current positions
+            seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
+            # generate_ethereum_keys(seed_phrase)
+            executor.submit(generate_ethereum_keys, seed_phrase)
 
 while True:
     try:
