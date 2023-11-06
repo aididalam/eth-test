@@ -1,33 +1,12 @@
 import mysql.connector
-import subprocess
-import time
-from eth_keys import keys
-from eth_hash.auto import keccak
 import requests
-import os
-import random
-from eth_account import Account
+import time
+import subprocess
 import threading
-Account.enable_unaudited_hdwallet_features()
-import eth_utils
-
-script_dir = os.path.dirname(os.path.abspath(__file__))
-file_path = os.path.join(script_dir, "english.txt")
-
-current_bsc_api_key_index = 0
-current_eth_api_key_index = 0
-
-# Database Configuration
-db_config = {
-    'host': "192.168.0.100",
-    'user': "aidid",
-    'password': "root1234",
-    'database': "eth_generator"
-}
+import concurrent.futures
+import random
 
 
-
-# Ethereum and BSC API Keys
 eth_api_keys = [
     "DF9PQ4B2TMY842D1AXWCD4EARQ6QE2Y1QP",
     "XVB6JBW4V9J55G7ZER2BXQ13X5A9M4INPA",
@@ -41,6 +20,12 @@ eth_api_keys = [
     "3PZ7HTE6BPH5F2Z1CQN3W3CAGFEY3TK5KX",
     "PY6EH5JMFNT226AY88MWN1CPR2DF3I3CJI",
     "D1UX8HI9NQGEE8P5JDIQAPMGPGR4IVJGHH",
+    "F5NHUA89CGQ28JWC94BQJRICA932X2ZFVI",
+    "RWYS6JR1AFZHHN67GB6RMQKA7K77BAHA6Q",
+    "U1DHYSZIF4CSRFWRKPA6X29PJJCIQ1XQCT",
+    "2Q8QNJJGMJCUWHWGTTSJ2BMGISNIHYTKQJ",
+    "5TFJF6KKR4ZH78C52JR8CV2IEWJ88GD4GF",
+    "98PT65RTUABYTT37GHQ5BQ4S7VV1ZNSR4A",
 ]
 bsc_api_keys = [
     "J4J4BNWW9M6F7AI3HYZJ39S6NB3T65M3QR",
@@ -55,248 +40,238 @@ bsc_api_keys = [
     "QZJM7N3YJAA6TXNR7MQE62WSF3UTIKD4Y1",
     "43Y5TKATER7XAFIXEZQFZP5T64UAFYV77T",
     "IZMV74J5RCC2PNPK1T3BV8SR3AW8NUD35F",
+    "UKU6G398DE67TGF8G7YJWZUP23ASYKFXS1",
+    "NVK3J2WRHFDDY6913CMWQUS64ESGATY8ET",
+    "TJMDNVQ5HDAP45HXI3AVBU5FZ6ADGQG5Y6",
+    "TJQ9A13TPXXMNFK4YC66SH2INIWCYUXIDQ",
+    "239M9C95JCGVM5JBZGS54BH7KS6QWUZD8X",
+    "DIWB4UXMXQ3SVRTMWGR9MRK31H6IAQD3NQ",
 ]
 
+current_eth_api_key_index = 0
+current_bsc_api_key_index = 0
 
+db_config = {
+    'host': "localhost",
+    'user': "root",
+    'password': "root1234",
+    'database': "eth_generator"
+}
 
+batch_size = 20  # Number of addresses to process in each batch
 
 def check_internet_connection():
     connected = False
-
     while not connected:
         try:
-            # Use the ping command to check internet connectivity
             subprocess.check_output(["ping", "-c", "1", "google.com"])
             print("Internet is connected.")
             connected = True
         except subprocess.CalledProcessError:
             print("Internet is not connected. Waiting for 5 seconds...")
             time.sleep(5)
-
     return connected
 
-
-def get_transaction_count_eth(address):
-    global current_eth_api_key_index
-    max_retries=5
-    eth_api_key= eth_api_keys[current_eth_api_key_index]
-    if current_eth_api_key_index>=len(eth_api_keys)-1:
-        current_eth_api_key_index=0
-    current_eth_api_key_index = current_eth_api_key_index+1
-    for retry in range(max_retries):
-        try:
-            # Define the Etherscan API endpoint
-            api_url = f"https://api.etherscan.io/api?module=account&action=txlist&address={address}&startblock=0&endblock=99999999&sort=asc&apikey={eth_api_key}"
-
-            # Make a GET request to the Etherscan API
-            response = requests.get(api_url)
-
-            if response.status_code == 200:
-                data = response.json()
-                transaction_count = len(data['result'])
-                print(transaction_count)
-                return transaction_count
-            else:
-                print(f"Failed to retrieve data from Etherscan API (Attempt {retry + 1})")
-        except requests.exceptions.RequestException as e:
-            if "No internet connection" in str(e):
-                check_internet_connection()
-            else:
-                print(f"Request failed with an error: {e}")
-        time.sleep(5)
-
-    print(f"Maximum retry attempts ({max_retries}) reached. Unable to retrieve transaction count.")
-    return 0
-
-
-def get_transaction_count_bsc(address):
-    global current_bsc_api_key_index
-    max_retries=5
-    bsc_api_key= bsc_api_keys[current_bsc_api_key_index]
-    if current_bsc_api_key_index>=len(bsc_api_keys)-1:
-        current_bsc_api_key_index=0
-    current_bsc_api_key_index = current_bsc_api_key_index+1
-    for retry in range(max_retries):
-        try:
-            # Define the BSCscan API endpoint
-            api_url = f"https://api.bscscan.com/api?module=account&action=txlist&address={address}&startblock=0&endblock=99999999&sort=asc&apikey={bsc_api_key}"
-
-            # Make a GET request to the BSCscan API
-            response = requests.get(api_url)
-
-            if response.status_code == 200:
-                data = response.json()
-                transaction_count = len(data['result'])
-                print(transaction_count)
-                return transaction_count
-            else:
-                print(f"Failed to retrieve data from BSCscan API (Attempt {retry + 1})")
-            current_bsc_api_key_index = (current_bsc_api_key_index + 1) % len(bsc_api_keys)
-        except requests.exceptions.RequestException as e:
-            if "No internet connection" in str(e):
-                check_internet_connection()
-            else:
-                print(f"Request failed with an error: {e}")
-        time.sleep(5)
-
-    print(f"Maximum retry attempts ({max_retries}) reached. Unable to retrieve transaction count.")
-    return 0
-
-def get_last_seed_from_db(db_config):
+def fetch_addresses_from_db(batch_size,connection):
     try:
-        # Connect to the database
-        connection = mysql.connector.connect(**db_config)
-
-        # Create a cursor to execute SQL queries
         cursor = connection.cursor()
 
-        # Define the SQL query to select the last seed from the "last_seed" table
-        select_query = "SELECT seed FROM last_seed where id=1"
-
-        # Execute the query
+        # Select addresses from the gen_address table starting from the given ID
+        select_query = f"SELECT address FROM gen_address where bnb_b is NUll  ORDER BY RAND() limit {batch_size}"
         cursor.execute(select_query)
+        addresses = cursor.fetchall()
 
-        # Fetch the last seed
-        last_seed = cursor.fetchone()
-
-        # Close the cursor and database connection
         cursor.close()
-        connection.close()
-
-        # If a last seed is found, return it as a string, else return None
-        if last_seed:
-            return last_seed[0]
-        else:
-            return None
+        return addresses
     except Exception as e:
-        print(f"Error while getting last seed from the database: {e}")
-        return None
-
-def saveLastDb(seed_phrase):
-    try:
-        connection = mysql.connector.connect(**db_config)
-        cursor = connection.cursor()
-        print("Last Seed: "+seed_phrase)
-        update_query = "INSERT INTO last_seed (id, seed) VALUES (1, %s) ON DUPLICATE KEY UPDATE seed = %s"
-        cursor.execute(update_query, (seed_phrase, seed_phrase))
-        connection.commit()
-        connection.close()
-        time.sleep(0.5)
-    except Exception as e:
-        pass
-
-def saveAddress(seed_phrase, keys_info):
-    try:
-        connection = mysql.connector.connect(**db_config)
-        cursor = connection.cursor()
-        print("Last Seed: " + seed_phrase)
-        update_query = "INSERT INTO gen_address (seed, public, private, address) VALUES (%s, %s, %s, %s)"  # Added a comma after %s
-        cursor.execute(update_query, (seed_phrase, keys_info["public"], keys_info["private"], keys_info["address"]))
-        connection.commit()
-        connection.close()
-        time.sleep(0.5)
-        # saveLastDb(seed_phrase)
-    except Exception as e:
-        pass
-
-def processKey(keys_info, seed_phrase):
-    connection = mysql.connector.connect(**db_config)
-    cursor = connection.cursor()
-    eth_address = keys_info["address"]
-    bsc_address = eth_address
-
-    eth_transaction_count = get_transaction_count_eth(eth_address)
-    bsc_transaction_count = get_transaction_count_bsc(bsc_address)
-    transaction_types = []
-
-    if eth_transaction_count > 0:
-        transaction_types.append("eth")
-    if bsc_transaction_count > 0:
-        transaction_types.append("bsc")
-
-    if transaction_types:
-        # Connect to the database
-        try:
-
-            # Insert data into the "address" table for each transaction type
-            for transaction_type in transaction_types:
-                insert_query = "INSERT INTO address (address, private_key, public_key, type, seed, transaction_count) " \
-                               "VALUES (%s, %s, %s, %s, %s, %s)"
-                val = (eth_address, keys_info["private"], keys_info["public"], transaction_type, seed_phrase,
-                       eth_transaction_count if transaction_type == "eth" else bsc_transaction_count)
-                cursor.execute(insert_query, val)
-
-            connection.commit()
-
-            print(f"Data saved to the 'address' and 'last_seed' tables. Types: {', '.join(transaction_types)}")
-        except Exception as error:
-            print(f"Error saving data to the database: {error}")
+        print(f"Error fetching addresses from the database: {e}")
+        return []
     
-    # Update the "last_seed" table with the new seed
-    saveLastDb(seed_phrase)
-             
-def generate_ethereum_keys(seed_phrase):
+
+
+def get_next_eth_api_key(connection):
+    cursor = connection.cursor()
+
     try:
-        eth_account = Account.from_mnemonic(seed_phrase)
-        eth_address = eth_account.address
-        private_key = eth_account.key.hex()
-        public_key = eth_account.address
-        keys_info = {
-            "private": private_key,
-            "public": public_key,
-            "address": eth_address
-        }
-        # processKey(keys_info,seed_phrase)
-        saveAddress(seed_phrase,keys_info)
-    except eth_utils.exceptions.ValidationError as ve:
-        pass
+        # Check for an idle API key with the earliest last_use
+        cursor.execute("SELECT `key` FROM api_keys WHERE type='eth' AND (last_use IS NULL OR last_use = (SELECT MIN(last_use) FROM api_keys WHERE type='eth'))")
+        result = cursor.fetchall()
+
+        if result:
+            api_key = result[0][0]
+        else:
+            # If no idle API keys are found, pick a random key
+            api_key = random.choice(eth_api_keys)
+
+        # Update the last_use field for the selected API key
+        cursor.execute("UPDATE api_keys SET last_use = NOW() WHERE `key` = %s", (api_key,))
+        connection.commit()
+
     except Exception as e:
-        pass
-        
+        print(f"Error getting next ETH API key: {e}")
+    finally:
+        cursor.close()
+
+    return api_key
+
+def get_next_bsc_api_key(connection):
+    # Connect to the database
+    cursor = connection.cursor()
+
+    try:
+        # Check for an idle API key with the earliest last_use
+        cursor.execute("SELECT `key` FROM api_keys WHERE type='bsc' AND (last_use IS NULL OR last_use = (SELECT MIN(last_use) FROM api_keys WHERE type='bsc'))")
+        result = cursor.fetchall()
+
+        if result:
+            api_key = result[0][0]
+        else:
+            # If no idle API keys are found, pick a random key
+            api_key = random.choice(bsc_api_keys)
+
+        # Update the last_use field for the selected API key
+        cursor.execute("UPDATE api_keys SET last_use = NOW() WHERE `key` = %s", (api_key,))
+        connection.commit()
+
+    except Exception as e:
+        print(f"Error getting next BSC API key: {e}")
+    finally:
+        cursor.close()
+
+    return api_key
+
+def fetch_eth_and_bsc_balances(addresses,connection):
+    eth_balances = {}
+    bsc_balances = {}
+
+    eth_addresses = []
+    bsc_addresses = []
+
+    for address, in addresses:
+        eth_addresses.append(address)
+        bsc_addresses.append(address)
+
+
+    # Construct comma-separated address strings
+    eth_addresses_str = ",".join(eth_addresses)
+    bsc_addresses_str = ",".join(bsc_addresses)
+
+    def fetch_eth_balance_with_retry():
+        max_retries = 2
+        retries = 0
+        while retries < max_retries:
+            eth_api_key = get_next_eth_api_key(connection)
+            eth_balance_url = f"https://api.etherscan.io/api?module=account&action=balancemulti&address={eth_addresses_str}&tag=latest&apikey={eth_api_key}"
+            eth_balance_response = requests.get(eth_balance_url)
+
+            if eth_balance_response.status_code == 200:
+                try:
+                    eth_balance_data = eth_balance_response.json()
+                    for data in eth_balance_data['result']:
+                        address = data['account']
+                        balance_wei = int(data['balance'])
+                        balance_eth = balance_wei / 1e18
+                        eth_balances[address] = balance_eth
+                    return
+                except Exception as e:
+                    print(f"Error processing")
+
+
+            print(f"Failed to fetch ETH balances with API key: {eth_api_key}")
+            retries += 1
+            eth_api_key = get_next_eth_api_key()
+            time.sleep(5)  # Wait for 5 seconds before retrying
+
+    def fetch_bsc_balance_with_retry():
+        max_retries = 2
+        retries = 0
+        while retries < max_retries:
+            bsc_api_key = get_next_bsc_api_key(connection)
+            bsc_balance_url = f"https://api.bscscan.com/api?module=account&action=balancemulti&address={bsc_addresses_str}&tag=latest&apikey={bsc_api_key}"
+            bsc_balance_response = requests.get(bsc_balance_url)
+
+            if bsc_balance_response.status_code == 200:
+                try:
+                    bsc_balance_data = bsc_balance_response.json()
+                    for data in bsc_balance_data['result']:
+                        address = data['account']
+                        balance_wei = int(data['balance'])
+                        balance_bnb = balance_wei / 1e18
+                        bsc_balances[address] = balance_bnb
+                    return
+                except Exception as e:
+                    print(f"Error processing")
+
+            print(f"Failed to fetch BSC balances with API key: {bsc_api_key}")
+            retries += 1
+            bsc_api_key = get_next_bsc_api_key()
+            time.sleep(5)  # Wait for 5 seconds before retrying
+
+    fetch_eth_balance_with_retry()
+    fetch_bsc_balance_with_retry()
+
+    return eth_balances, bsc_balances
+
+def update_balances_in_db(eth_balances, bsc_balances,connection):
+    try:
+        cursor = connection.cursor()
+
+        for address, eth_balance in eth_balances.items():
+            bsc_balance = bsc_balances.get(address, None)
+            print("ad: "+address+" ETH"+ str(eth_balance)+" BNB: "+str(bsc_balance))
+            if bsc_balance is not None:
+                if eth_balance == 0 and bsc_balance == 0:
+                    # Delete the record if both balances are zero
+                    delete_query = "DELETE FROM gen_address WHERE address = %s"
+                    cursor.execute(delete_query, (address,))
+                else:
+                    # Update balances for the current address in the database
+                    update_query = "UPDATE gen_address SET eth_b = %s, bnb_b = %s WHERE address = %s"
+                    cursor.execute(update_query, (eth_balance, bsc_balance, address))
+
+        connection.commit()
+        cursor.close()
+    except Exception as e:
+        print(f"Error updating balances in the database: {e}")
+
+def proccess_address(addresses,connection):
+    try:
+        eth_balances, bsc_balances = fetch_eth_and_bsc_balances(addresses,connection)
+        update_balances_in_db(eth_balances, bsc_balances,connection)
+    finally:
+        connection.close()
 
 def main():
-    # if check_internet_connection():
-    #     # Proceed with your code here
-    #     print("Connected to the internet. Continuing with the code.")
-    # else:
-    #     print("Could not establish an internet connection.")
+    if check_internet_connection():
+        print("Connected to the internet. Continuing with the code.")
+    else:
+        print("Could not establish an internet connection.")
 
-
-    # Load your word list
-    with open(file_path, "r") as file:
-        word_list = [word.strip() for word in file]
-
-    # Define the number of words to combine
-    num_words_to_combine = 12
-
-    # Define the seed and positions for the first 12 words
-    start_words="ability abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"
-    while True:
-        seed_words = get_last_seed_from_db(db_config)
-        if seed_words is not None:
-            break
-        time.sleep(1)
-    seed_words=seed_words.split(" ")
-
-    try:
-        positions = [word_list.index(word) for word in seed_words]
-    except:
-        positions = [word_list.index(word) for word in start_words.split(" ")]
-    
-    # positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
-
-
-    while True:
-        positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
-        # Generate a seed phrase using the current positions
-        seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
-        # generate_ethereum_keys(seed_phrase)
-        background_thread = threading.Thread(target=generate_ethereum_keys, args=(seed_phrase,))
-        background_thread.start()
+    max_threads = 4
+    with concurrent.futures.ThreadPoolExecutor(max_threads) as executor:
+        while True:
+            # Fetch addresses in batches
+            try: 
+                 connection = mysql.connector.connect(**db_config)
+            except Exception as e:
+                time.sleep(5)
+                print("A lot of connection. Waiting")
+                continue
+            addresses = fetch_addresses_from_db(batch_size,connection)
+            if not addresses:
+                print("No more addresses to process. Waiting.")
+                time.sleep(5)
+                continue
+            executor.submit(proccess_address, addresses,connection)
+            time.sleep(0.5)
+        
 
 while True:
     try:
         main()
     except Exception as e:
-        print(f"An error occurred: {e}. Restarting in 60 seconds...")
-        time.sleep(2)
+        print(f"Error Happend....! Resatarting in 10s")
+    time.sleep(10)
+
+    
+    
