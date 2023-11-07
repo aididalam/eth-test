@@ -342,7 +342,7 @@ async def main():
             # generate_ethereum_keys(seed_phrase)
             executor.submit(generate_ethereum_keys, seed_phrase)
             count=count+1
-            if(count==200000):
+            if(count==2000000):
                 await sendTelegramMessage()
                 count=0
 
