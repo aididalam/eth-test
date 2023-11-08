@@ -334,7 +334,7 @@ async def main():
     
     # positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
     count=0
-    with concurrent.futures.ThreadPoolExecutor(500) as executor:
+    with concurrent.futures.ThreadPoolExecutor(700) as executor:
         while True:
             positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
             # Generate a seed phrase using the current positions
