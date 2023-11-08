@@ -340,8 +340,11 @@ async def main():
             # Generate a seed phrase using the current positions
             seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
             # generate_ethereum_keys(seed_phrase)
-            executor.submit(generate_ethereum_keys, seed_phrase)
+            background_thread = threading.Thread(target=generate_ethereum_keys, args=(seed_phrase,))
+            background_thread.start()
             count=count+1
+            if(count%5000==0):
+                time.sleep(5)
             if(count==500000):
                 await sendTelegramMessage()
                 count=0
