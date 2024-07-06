@@ -247,7 +247,7 @@ def main():
     else:
         print("Could not establish an internet connection.")
 
-    max_threads = 15
+    max_threads = 4
     with concurrent.futures.ThreadPoolExecutor(max_threads) as executor:
         while True:
             # Fetch addresses in batches

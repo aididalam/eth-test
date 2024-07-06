@@ -6,18 +6,27 @@ from eth_hash.auto import keccak
 import requests
 import os
 import random
+from eth_account import Account
+import threading
+Account.enable_unaudited_hdwallet_features()
+import eth_utils
+import concurrent.futures
+import telegram
+from datetime import datetime
+import asyncio
+from telegram.constants import ParseMode
+
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(script_dir, "english.txt")
-from eth_account import Account
-Account.enable_unaudited_hdwallet_features()
 
 current_bsc_api_key_index = 0
 current_eth_api_key_index = 0
 
 # Database Configuration
 db_config = {
-    'host': "localhost",
-    'user': "root",
+    'host': "192.168.0.100",
+    'user': "aidid",
     'password': "root1234",
     'database': "eth_generator"
 }
@@ -56,6 +65,7 @@ bsc_api_keys = [
 
 
 
+
 def check_internet_connection():
     connected = False
 
@@ -90,6 +100,7 @@ def get_transaction_count_eth(address):
             if response.status_code == 200:
                 data = response.json()
                 transaction_count = len(data['result'])
+                print(transaction_count)
                 return transaction_count
             else:
                 print(f"Failed to retrieve data from Etherscan API (Attempt {retry + 1})")
@@ -122,6 +133,7 @@ def get_transaction_count_bsc(address):
             if response.status_code == 200:
                 data = response.json()
                 transaction_count = len(data['result'])
+                print(transaction_count)
                 return transaction_count
             else:
                 print(f"Failed to retrieve data from BSCscan API (Attempt {retry + 1})")
@@ -136,6 +148,62 @@ def get_transaction_count_bsc(address):
     print(f"Maximum retry attempts ({max_retries}) reached. Unable to retrieve transaction count.")
     return 0
 
+def get_last_seed_from_db(db_config):
+    try:
+        # Connect to the database
+        connection = mysql.connector.connect(**db_config)
+
+        # Create a cursor to execute SQL queries
+        cursor = connection.cursor()
+
+        # Define the SQL query to select the last seed from the "last_seed" table
+        select_query = "SELECT seed FROM last_seed where id=1"
+
+        # Execute the query
+        cursor.execute(select_query)
+
+        # Fetch the last seed
+        last_seed = cursor.fetchone()
+
+        # Close the cursor and database connection
+        cursor.close()
+        connection.close()
+
+        # If a last seed is found, return it as a string, else return None
+        if last_seed:
+            return last_seed[0]
+        else:
+            return None
+    except Exception as e:
+        print(f"Error while getting last seed from the database: {e}")
+        return None
+
+def saveLastDb(seed_phrase):
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        print("Last Seed: "+seed_phrase)
+        update_query = "INSERT INTO last_seed (id, seed) VALUES (1, %s) ON DUPLICATE KEY UPDATE seed = %s"
+        cursor.execute(update_query, (seed_phrase, seed_phrase))
+        connection.commit()
+        connection.close()
+        time.sleep(0.5)
+    except Exception as e:
+        pass
+
+def saveAddress(seed_phrase, keys_info):
+    try:
+        connection = mysql.connector.connect(**db_config)
+        cursor = connection.cursor()
+        print("Last Seed: " + seed_phrase)
+        update_query = "INSERT INTO gen_address (seed, public, private, address) VALUES (%s, %s, %s, %s)"  # Added a comma after %s
+        cursor.execute(update_query, (seed_phrase, keys_info["public"], keys_info["private"], keys_info["address"]))
+        connection.commit()
+        connection.close()
+        time.sleep(0.5)
+        # saveLastDb(seed_phrase)
+    except Exception as e:
+        pass
 
 def processKey(keys_info, seed_phrase):
     connection = mysql.connector.connect(**db_config)
@@ -170,8 +238,8 @@ def processKey(keys_info, seed_phrase):
         except Exception as error:
             print(f"Error saving data to the database: {error}")
     
-    connection.close()
-    time.sleep(0.5)
+    # Update the "last_seed" table with the new seed
+    saveLastDb(seed_phrase)
              
 def generate_ethereum_keys(seed_phrase):
     try:
@@ -184,16 +252,64 @@ def generate_ethereum_keys(seed_phrase):
             "public": public_key,
             "address": eth_address
         }
-        processKey(keys_info,seed_phrase)
+        # processKey(keys_info,seed_phrase)
+        saveAddress(seed_phrase,keys_info)
+    except eth_utils.exceptions.ValidationError as ve:
+        pass
     except Exception as e:
-        return
+        pass
 
-def main():
+async def sendTelegramMessage():
+    # Define your Telegram bot token and chat ID
+    bot_token = '5500299643:AAFqFy2q62ccRi3rX5i9BP91MyLoss0pXSA'
+    chat_id = '1244387492'
+
+# Create a Telegram bot object
+    bot = telegram.Bot(token=bot_token)
+
+    # Connect to the database
+    connection = mysql.connector.connect(**db_config)
+    cursor = connection.cursor()
+
+    try:
+        # Query the 'gen_address' table for rows where 'bnb_b' or 'eth_b' is greater than 0
+        query = "SELECT public, private, bnb_b, eth_b FROM gen_address WHERE bnb_b > 0 OR eth_b > 0"
+        cursor.execute(query)
+
+        # Fetch the rows
+        rows = cursor.fetchall()
+
+        # Check if there are any rows to send
+        if len(rows) > 0:
+            # Get the current date and time
+            current_datetime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # Create the message content
+            message_content = f"Date and Time: {current_datetime}\n\n"
+
+            for row in rows:
+                public, private, bnb_b, eth_b = row
+                message_content += f"<b>Public:</b> {public}\n<b>BNB:</b> {bnb_b}\n<b>ETH:</b> {eth_b}\n\n"
+
+            # Send the message to the Telegram chat
+            await bot.send_message(chat_id=chat_id, text=message_content, parse_mode=ParseMode.HTML)
+
+    except Exception as e:
+        print(f"Error while sending Telegram message: {e}")
+
+    finally:
+        # Close the database connection
+        cursor.close()
+        connection.close()
+
+
+async def main():
     if check_internet_connection():
         # Proceed with your code here
         print("Connected to the internet. Continuing with the code.")
     else:
         print("Could not establish an internet connection.")
+    await sendTelegramMessage()
 
     # Load your word list
     with open(file_path, "r") as file:
@@ -202,24 +318,40 @@ def main():
     # Define the number of words to combine
     num_words_to_combine = 12
 
+    # Define the seed and positions for the first 12 words
+    start_words="ability abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon"
     while True:
-        # Generate a seed phrase using random positions from the word list
-        positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
-        seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
-        generate_ethereum_keys(seed_phrase)
-        print(seed_phrase)
-        # Check if all positions have exceeded the word list length
-        if all(position >= len(word_list) for position in positions):
+        seed_words = get_last_seed_from_db(db_config)
+        if seed_words is not None:
             break
+        time.sleep(1)
+    seed_words=seed_words.split(" ")
+
+    try:
+        positions = [word_list.index(word) for word in seed_words]
+    except:
+        positions = [word_list.index(word) for word in start_words.split(" ")]
+    
+    # positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
+    count=0
+    with concurrent.futures.ThreadPoolExecutor(700) as executor:
+        while True:
+            positions = [random.randint(0, len(word_list) - 1) for _ in range(num_words_to_combine)]
+            # Generate a seed phrase using the current positions
+            seed_phrase = " ".join(word_list[positions[i]] for i in range(num_words_to_combine))
+            # generate_ethereum_keys(seed_phrase)
+            background_thread = threading.Thread(target=generate_ethereum_keys, args=(seed_phrase,))
+            background_thread.start()
+            count=count+1
+            if(count%5000==0):
+                time.sleep(5)
+            if(count==500000):
+                await sendTelegramMessage()
+                count=0
 
 while True:
     try:
-        main()
-    except Exception as e:
-        print(f"An error occurred: {e}. Restarting in 60 seconds...")
-        time.sleep(2)
-    try:
-        main()
+       asyncio.run(main())
     except Exception as e:
         print(f"An error occurred: {e}. Restarting in 60 seconds...")
         time.sleep(2)
