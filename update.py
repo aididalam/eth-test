@@ -7,6 +7,16 @@ import concurrent.futures
 import random
 
 
+def read_api_keys(file_path):
+    with open(file_path, "r") as file:
+        api_keys = [line.strip() for line in file if line.strip()]
+    return api_keys
+
+eth_file_path = "eth_api.txt"
+bsc_file_path = "bsc_api.txt"
+eth_api_keys = read_api_keys(eth_file_path)
+bsc_api_keys = read_api_keys(bsc_file_path)
+
 eth_api_keys = [
     "DF9PQ4B2TMY842D1AXWCD4EARQ6QE2Y1QP",
     "XVB6JBW4V9J55G7ZER2BXQ13X5A9M4INPA",
