@@ -11,7 +11,7 @@ Account.enable_unaudited_hdwallet_features()
 
 # Database Configuration
 db_config = {
-    'host': "pi.local",
+    'host': "localhost",
     'user': "aidid",
     'password': "aidid",
     'database': "eth_generator"
