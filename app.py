@@ -9,7 +9,7 @@ Account.enable_unaudited_hdwallet_features()
 
 # Database Configuration
 db_config = {
-    'host': "192.168.0.100",
+    'host': "localhost",
     'user': "root",
     'password': "root1234",
     'database': "eth_generator"
@@ -44,8 +44,6 @@ def get_balance(addresses, api_key, blockchain):
 
 # Function to save data to the database
 def save_to_database(data):
-    print(data);
-    return;
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     try:
