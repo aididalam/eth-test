@@ -17,8 +17,8 @@ db_config = {
     'database': "eth_generator"
 }
 
-eth_file_path = "eth_api.txt"
-bsc_file_path = "bsc_api.txt"
+eth_file_path = "./eth_api.txt"
+bsc_file_path = "./bsc_api.txt"
 
 def read_api_keys(file_path):
     with open(file_path, "r") as file:
