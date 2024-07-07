@@ -4,12 +4,14 @@ import requests
 import threading
 from eth_account import Account
 from mnemonic import Mnemonic
+import time
+import logging
 
 Account.enable_unaudited_hdwallet_features()
 
 # Database Configuration
 db_config = {
-    'host': "localhost",
+    'host': "pi.local",
     'user': "aidid",
     'password': "aidid",
     'database': "eth_generator"
@@ -114,27 +116,32 @@ def main(num_threads=1):
     global current_bsc_api_key_index
 
     while True:
-        threads = []
+        try:
+            threads = []
 
-        for i in range(num_threads):
-            eth_api_key = eth_api_keys[current_eth_api_key_index]
-            bsc_api_key = bsc_api_keys[current_bsc_api_key_index]
-            
-            # Update indices for circular key usage
-            current_eth_api_key_index += 1
-            current_bsc_api_key_index += 1
+            for i in range(num_threads):
+                eth_api_key = eth_api_keys[current_eth_api_key_index]
+                bsc_api_key = bsc_api_keys[current_bsc_api_key_index]
+                
+                # Update indices for circular key usage
+                current_eth_api_key_index += 1
+                current_bsc_api_key_index += 1
 
-            if current_eth_api_key_index >= len(eth_api_keys):
-                current_eth_api_key_index = 0
-            if current_bsc_api_key_index >= len(bsc_api_keys):
-                current_bsc_api_key_index = 0
+                if current_eth_api_key_index >= len(eth_api_keys):
+                    current_eth_api_key_index = 0
+                if current_bsc_api_key_index >= len(bsc_api_keys):
+                    current_bsc_api_key_index = 0
 
-            thread = threading.Thread(target=process_addresses, args=(i + 1, eth_api_key, bsc_api_key))
-            thread.start()
-            threads.append(thread)
+                thread = threading.Thread(target=process_addresses, args=(i + 1, eth_api_key, bsc_api_key))
+                thread.start()
+                threads.append(thread)
 
-        for thread in threads:
-            thread.join()
+            for thread in threads:
+                thread.join()
+        except Exception as e:
+            logging.error(f"An error occurred: {str(e)}")
+            # Optionally, sleep for some time before restarting
+            time.sleep(60)
 
 if __name__ == "__main__":
     current_eth_api_key_index = 0
