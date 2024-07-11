@@ -12,8 +12,8 @@ Account.enable_unaudited_hdwallet_features()
 # Database Configuration
 db_config = {
     'host': "localhost",
-    'user': "aidid",
-    'password': "aidid",
+    'user': "root",
+    'password': "root1234",
     'database': "eth_generator"
 }
 
@@ -46,6 +46,8 @@ def get_balance(addresses, api_key, blockchain):
 
 # Function to save data to the database
 def save_to_database(data):
+    if len(data)>0:
+        print(data);
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     try:
@@ -146,4 +148,4 @@ def main(num_threads=1):
 if __name__ == "__main__":
     current_eth_api_key_index = 0
     current_bsc_api_key_index = 0
-    main(num_threads=4)
+    main(num_threads=50)
