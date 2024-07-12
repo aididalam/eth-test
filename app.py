@@ -160,4 +160,4 @@ def main(num_threads=1):
 if __name__ == "__main__":
     current_eth_api_key_index = 0
     current_bsc_api_key_index = 0
-    main(num_threads=60)
+    main(num_threads=120)
