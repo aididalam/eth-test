@@ -12,8 +12,8 @@ Account.enable_unaudited_hdwallet_features()
 # Database Configuration
 db_config = {
     'host': "localhost",
-    'user': "root",
-    'password': "root1234",
+    'user': "aidid",
+    'password': "aidid",
     'database': "eth_generator"
 }
 
@@ -32,7 +32,7 @@ bsc_api_keys = read_api_keys(bsc_file_path)
 # English word list file path
 file_path = "english.txt"
 
-# Function to check balances via API
+# Function to check balances via API with retries
 def get_balance(addresses, api_key, blockchain):
     address_list = ",".join(addresses)
     if blockchain == "etherscan":
@@ -40,9 +40,18 @@ def get_balance(addresses, api_key, blockchain):
     else:
         url = f"https://api.bscscan.com/api?module=account&action=balancemulti&address={address_list}&tag=latest&apikey={api_key}"
 
-    response = requests.get(url)
-    data = response.json()
-    return data["result"]
+    attempts = 0
+    while attempts < 3:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  
+            data = response.json()
+            return data["result"]
+        except requests.exceptions.RequestException as e:
+            attempts += 1
+            time.sleep(5)
+    
+    return None  # Return None after 3 failed attempts
 
 # Function to save data to the database
 def save_to_database(data):
@@ -95,6 +104,9 @@ def process_addresses(thread_id, eth_api_key, bsc_api_key):
         # Check balances via API
         eth_balances = get_balance(eth_addresses, eth_api_key, "etherscan")
         bsc_balances = get_balance(bsc_addresses, bsc_api_key, "bscscan")
+        
+        if eth_balances is None and bsc_balances is None:
+            return
 
         # Update address_data with balances
         for i in range(len(address_data)):
@@ -148,4 +160,4 @@ def main(num_threads=1):
 if __name__ == "__main__":
     current_eth_api_key_index = 0
     current_bsc_api_key_index = 0
-    main(num_threads=50)
+    main(num_threads=30)
