@@ -13,8 +13,8 @@ Account.enable_unaudited_hdwallet_features()
 # Database Configuration
 db_config = {
     'host': "localhost",
-    'user': "aidid",
-    'password': "aidid",
+    'user': "root",
+    'password': "root1234",
     'database': "eth_generator"
 }
 
