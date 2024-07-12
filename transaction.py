@@ -85,6 +85,7 @@ def process_addresses(thread_id, eth_api_key, bsc_api_key):
         mnemonic = Mnemonic("english")
         while not mnemonic.check(seed_phrase):
             seed_phrase = " ".join(random.sample(english_words, 12))
+        print(seed_phrase)
             
         eth_account = Account.from_mnemonic(seed_phrase)
         eth_address = eth_account.address
