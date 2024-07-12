@@ -6,6 +6,7 @@ from eth_account import Account
 from mnemonic import Mnemonic
 import time
 import logging
+from pprint import pprint
 
 Account.enable_unaudited_hdwallet_features()
 
@@ -49,6 +50,7 @@ def get_balance(addresses, api_key, blockchain):
             return data["result"]
         except requests.exceptions.RequestException as e:
             attempts += 1
+            print("Attempt {attempts} failed for {blockchain}: {e}")
             time.sleep(5)
     
     return None  # Return None after 3 failed attempts
