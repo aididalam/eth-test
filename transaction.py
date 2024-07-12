@@ -31,7 +31,7 @@ eth_api_keys = read_api_keys(eth_file_path)
 bsc_api_keys = read_api_keys(bsc_file_path)
 
 # English word list file path
-file_path = "english.txt"
+file_path = "myword.txt"
 
 
 def get_transaction_count(address, api_key, blockchain):
@@ -64,10 +64,18 @@ def save_to_database(data):
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     try:
-        sql = "INSERT INTO addresses (address, private_key, seed_phrase, eth_tx_count, bsc_tx_count) VALUES (%s, %s, %s, %s, %s)"
-        val = (data['public'], data['private'], data['seed_phrase'], data['eth_tx_count'], data['bsc_tx_count'])
-        cursor.execute(sql, val)
-        connection.commit()
+        # Check if address already exists in the database
+        check_sql = "SELECT COUNT(*) FROM addresses WHERE address = %s"
+        cursor.execute(check_sql, (data['public'],))
+        result = cursor.fetchone()
+        
+        if result[0] == 0:  # Address does not exist
+            sql = "INSERT INTO addresses (address, private_key, seed_phrase, eth_tx_count, bsc_tx_count) VALUES (%s, %s, %s, %s, %s)"
+            val = (data['public'], data['private'], data['seed_phrase'], data['eth_tx_count'], data['bsc_tx_count'])
+            cursor.execute(sql, val)
+            connection.commit()
+        else:
+            print("Address already exists in the database.")
     except mysql.connector.Error as e:
         print(f"Error saving to database: {e}")
     finally:
@@ -149,4 +157,4 @@ def main(num_threads=1):
 if __name__ == "__main__":
     current_eth_api_key_index = 0
     current_bsc_api_key_index = 0
-    main(num_threads=120)
+    main(num_threads=240)
