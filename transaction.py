@@ -33,45 +33,54 @@ bsc_api_keys = read_api_keys(bsc_file_path)
 # English word list file path
 file_path = "english.txt"
 
-# Function to check balances via API with retries
-def get_balance(addresses, api_key, blockchain):
-    address_list = ",".join(addresses)
+
+def get_transaction_count(address, api_key, blockchain):
     if blockchain == "etherscan":
-        url = f"https://api.etherscan.io/api?module=account&action=balancemulti&address={address_list}&tag=latest&apikey={api_key}"
+        url = f"https://api.etherscan.io/api?module=account&action=txlist&address={address}&startblock=0&endblock=99999999&sort=asc&apikey={api_key}"
     else:
-        url = f"https://api.bscscan.com/api?module=account&action=balancemulti&address={address_list}&tag=latest&apikey={api_key}"
+        url = f"https://api.bscscan.com/api?module=account&action=txlist&address={address}&startblock=0&endblock=99999999&sort=asc&apikey={api_key}"
 
     attempts = 0
     while attempts < 3:
         try:
             response = requests.get(url)
-            response.raise_for_status()  
+            response.raise_for_status()
             data = response.json()
-            return data["result"]
+            if data["status"] == "1":
+                return len(data["result"])
+            else:
+                return 0
         except requests.exceptions.RequestException as e:
             attempts += 1
-            print("Attempt {attempts} failed for {blockchain}: {e}")
+            print(f"Attempt {attempts} failed for {blockchain}: {e}")
             time.sleep(5)
     
-    return None  # Return None after 3 failed attempts
+    return None
 
 # Function to save data to the database
 def save_to_database(data):
-    if len(data)>0:
-        print(data);
+    if data:
+        print(data)
     connection = mysql.connector.connect(**db_config)
     cursor = connection.cursor()
     try:
-        sql = "INSERT INTO addresses (address, private_key, seed_phrase, eth_balance, bsc_balance) VALUES (%s, %s, %s, %s, %s)"
-        val = [(entry['public'], entry['private'], entry['seed_phrase'], entry['eth_balance'], entry['bsc_balance']) for entry in data]
-        cursor.executemany(sql, val)
-        connection.commit()
+        # Check if address already exists in the database
+        check_sql = "SELECT COUNT(*) FROM addresses WHERE address = %s"
+        cursor.execute(check_sql, (data['public'],))
+        result = cursor.fetchone()
+        
+        if result[0] == 0:  # Address does not exist
+            sql = "INSERT INTO addresses (address, private_key, seed_phrase, eth_tx_count, bsc_tx_count) VALUES (%s, %s, %s, %s, %s)"
+            val = (data['public'], data['private'], data['seed_phrase'], data['eth_tx_count'], data['bsc_tx_count'])
+            cursor.execute(sql, val)
+            connection.commit()
+        else:
+            print("Address already exists in the database.")
     except mysql.connector.Error as e:
         print(f"Error saving to database: {e}")
     finally:
         cursor.close()
         connection.close()
-
 # Function to generate addresses and check balances
 def process_addresses(thread_id, eth_api_key, bsc_api_key):
     try:
@@ -79,54 +88,40 @@ def process_addresses(thread_id, eth_api_key, bsc_api_key):
         with open(file_path, "r") as file:
             english_words = [word.strip() for word in file]
 
-        # Generate 20 addresses
-        address_data = []
-        while len(address_data) < 20:
-            seed_phrase = " ".join(random.choices(english_words, k=12))
-            mnemonic = Mnemonic("english")
-            if not mnemonic.check(seed_phrase):
-                continue
-            eth_account = Account.from_mnemonic(seed_phrase)
-            eth_address = eth_account.address
-            private_key = eth_account.key.hex()
+        # Generate 1 address
+        seed_phrase = " ".join(random.sample(english_words, 12))
+        mnemonic = Mnemonic("english")
+        while not mnemonic.check(seed_phrase):
+            seed_phrase = " ".join(random.sample(english_words, 12))
+        print(seed_phrase)
+            
+        eth_account = Account.from_mnemonic(seed_phrase)
+        eth_address = eth_account.address
+        private_key = eth_account.key.hex()
 
-            address_info = {
-                "private": private_key,
-                "public": eth_address,
-                "seed_phrase": seed_phrase
-            }
-            address_data.append(address_info)
-
-        eth_addresses = [data['public'] for data in address_data]
-        bsc_addresses = eth_addresses.copy()
-
-        if len(bsc_addresses) == 0:
-            return
-
-        # Check balances via API
-        eth_balances = get_balance(eth_addresses, eth_api_key, "etherscan")
-        bsc_balances = get_balance(bsc_addresses, bsc_api_key, "bscscan")
+        address_info = {
+            "private": private_key,
+            "public": eth_address,
+            "seed_phrase": seed_phrase
+        }
         
-        if eth_balances is None and bsc_balances is None:
+        # Check transaction count via API
+        eth_tx_count = get_transaction_count(eth_address, eth_api_key, "etherscan")
+        bsc_tx_count = get_transaction_count(eth_address, bsc_api_key, "bscscan")
+        
+        if eth_tx_count is None and bsc_tx_count is None:
             return
 
-        # Update address_data with balances
-        for i in range(len(address_data)):
-            eth_balance = eth_balances[i]["balance"] if i < len(eth_balances) else "0"
-            bsc_balance = bsc_balances[i]["balance"] if i < len(bsc_balances) else "0"
-            address_data[i]['eth_balance'] = eth_balance
-            address_data[i]['bsc_balance'] = bsc_balance
-
-
-        # Filter out addresses with zero balance
-        valid_data = [data for data in address_data if int(data['eth_balance']) > 0 or int(data['bsc_balance']) > 0]
+        # Update address_info with transaction counts
+        address_info['eth_tx_count'] = eth_tx_count if eth_tx_count is not None else 0
+        address_info['bsc_tx_count'] = bsc_tx_count if bsc_tx_count is not None else 0
 
         # Save to database
-        save_to_database(valid_data)
+        if address_info['eth_tx_count'] > 0 or address_info['bsc_tx_count'] > 0:
+            save_to_database(address_info)
 
     except Exception as e:
         print(f"Thread {thread_id} encountered an error: {e}")
-
 def main(num_threads=1):
     global current_eth_api_key_index
     global current_bsc_api_key_index
@@ -162,4 +157,4 @@ def main(num_threads=1):
 if __name__ == "__main__":
     current_eth_api_key_index = 0
     current_bsc_api_key_index = 0
-    main(num_threads=120)
+    main(num_threads=240)
