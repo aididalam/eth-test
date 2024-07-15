@@ -31,7 +31,7 @@ eth_api_keys = read_api_keys(eth_file_path)
 bsc_api_keys = read_api_keys(bsc_file_path)
 
 # English word list file path
-file_path = "myword.txt"
+file_path = "english.txt"
 
 
 def get_transaction_count(address, api_key, blockchain):
