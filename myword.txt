@@ -1,15 +1,3 @@
-hold
-ordinary
-undo
-mask
-position
-small
-powder
-answer
-when
-bracket
-earth
-head
 topic
 bounce
 title
