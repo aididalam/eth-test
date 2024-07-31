@@ -93,12 +93,12 @@ def save_to_database(data):
 def process_addresses(thread_id, eth_api_key, bsc_api_key, start_key):
     try:
         # Calculate the unique start key for this thread
-        thread_start_key = int(start_key, 16) + (thread_id - 1) * 20
+        thread_start_key = int(start_key, 16) - (thread_id - 1) * 20
         thread_start_key = hex(thread_start_key)[2:].zfill(64)  # Ensure 64 characters
 
         address_data = []
         for i in range(20):
-            private_key_int = int(thread_start_key, 16) + i
+            private_key_int = int(thread_start_key, 16) - i
             private_key_hex = hex(private_key_int)[2:].zfill(64)  # Ensure 64 characters
             eth_account = Account.from_key(private_key_hex)
             eth_address = eth_account.address
@@ -175,7 +175,7 @@ def main(num_threads=1):
 
             # Update start_key
             start_key_int = int(start_key, 16)
-            start_key_int += num_threads * 20
+            start_key_int -= num_threads * 20
             start_key = hex(start_key_int)[2:].zfill(64)  # Ensure 64 characters
 
             # Save the updated start key
