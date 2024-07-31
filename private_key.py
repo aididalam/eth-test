@@ -57,15 +57,9 @@ def get_balance(addresses, api_key, blockchain):
             response = requests.get(url)
             response.raise_for_status()
             data = response.json()
-            result = data.get("result", [])
-
-            # Convert wei to ETH
-            for item in result:
-                item["balance"] = int(item["balance"]) / 10**18
-            
-            pprint(result)
+            pprint(data["result"])
             print("\n")
-            return result
+            return data["result"]
         except requests.exceptions.RequestException as e:
             attempts += 1
             print(f"Attempt {attempts} failed for {blockchain}: {e}")
