@@ -57,15 +57,20 @@ def get_balance(addresses, api_key, blockchain):
             response = requests.get(url)
             response.raise_for_status()
             data = response.json()
-            pprint(data["result"])
-            return data["result"]
+            result = data.get("result", [])
+
+            # Convert wei to ETH
+            for item in result:
+                item["balance"] = int(item["balance"]) / 10**18
+            
+            pprint(result)
+            return result
         except requests.exceptions.RequestException as e:
             attempts += 1
             print(f"Attempt {attempts} failed for {blockchain}: {e}")
             time.sleep(5)
     
-    return None  # Return None after 3 failed attempts
-
+    return None
 # Function to save data to the database
 def save_to_database(data):
     if len(data) > 0:
@@ -86,18 +91,21 @@ def save_to_database(data):
 # Function to generate addresses and check balances
 def process_addresses(thread_id, eth_api_key, bsc_api_key, start_key):
     try:
-        # Generate 20 addresses
+        # Calculate the unique start key for this thread
+        thread_start_key = int(start_key, 16) + (thread_id - 1) * 20
+        thread_start_key = hex(thread_start_key)[2:].zfill(64)  # Ensure 64 characters
+
         address_data = []
         for i in range(20):
-            private_key_int = int(start_key, 16) + i
-            private_key_hex = hex(private_key_int)[2:]
+            private_key_int = int(thread_start_key, 16) + i
+            private_key_hex = hex(private_key_int)[2:].zfill(64)  # Ensure 64 characters
             eth_account = Account.from_key(private_key_hex)
             eth_address = eth_account.address
 
             address_info = {
                 "private": private_key_hex,
                 "public": eth_address,
-                "seed_phrase": "unknown"  # No seed phrase as we're directly using private keys
+                "seed_phrase": None  # No seed phrase as we're directly using private keys
             }
             address_data.append(address_info)
 
@@ -167,7 +175,7 @@ def main(num_threads=1):
             # Update start_key
             start_key_int = int(start_key, 16)
             start_key_int += num_threads * 20
-            start_key = hex(start_key_int)[2:]
+            start_key = hex(start_key_int)[2:].zfill(64)  # Ensure 64 characters
 
             # Save the updated start key
             write_last_key(last_key_file_path, start_key)
