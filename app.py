@@ -58,7 +58,7 @@ def get_balance(addresses, api_key, blockchain):
             return result
         except requests.exceptions.RequestException as e:
             attempts += 1
-            print("Attempt {attempts} failed for {blockchain}: {e}")
+            print(f"Attempt {attempts} failed for {blockchain}: {e}")
             time.sleep(5)
     
     return None  # Return None after 3 failed attempts
