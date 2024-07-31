@@ -64,6 +64,7 @@ def get_balance(addresses, api_key, blockchain):
                 item["balance"] = int(item["balance"]) / 10**18
             
             pprint(result)
+            print("\n")
             return result
         except requests.exceptions.RequestException as e:
             attempts += 1
